@@ -6,11 +6,11 @@ A web app for managing ProPresenter stage display content across multiple campus
 
 ## Features
 
-- **Multi-campus tabs** — Fishers, Carmel, Westfield, and any others you add
-- **RSS feeds** per campus and slot, plus a dynamic feed that routes by requesting IP
+- **Multi-campus tabs** — Easilly add your campuses to the database
+- **RSS feeds** per campus and slot, plus a dynamic feed that routes by requesting IP for unified ProPresenter configs
 - **ProPresenter Config tab** — copy RSS URLs ready to paste into ProPresenter
 - **Settings tab** — add/remove campuses and display types without touching config files
-- **Direct URLs** — `/fishers` opens straight to that campus tab
+- **Direct URLs** — `/campus-name` opens straight to that campus tab
 
 ## Quick start (local)
 
@@ -32,7 +32,7 @@ docker compose up -d
 | Type | URL |
 |---|---|
 | Static (by campus) | `/rss/fishers/host-pre` |
-| Dynamic (by IP) | `/rss/dynamic/host-pre` |
+| Dynamic (by requestor IP) | `/rss/dynamic/host-pre` |
 
 Slots: `host-pre` · `host-mid` · `host-post`
 
