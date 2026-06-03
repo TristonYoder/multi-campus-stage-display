@@ -3,52 +3,38 @@
 ## Prerequisites
 
 - Docker + Docker Compose on the target server
-- A GitHub repo with this code pushed to `main`
+
+The image is built automatically on every push to `main` and published to:
+
+```
+ghcr.io/tristonyoder/stage-display-content:latest
+```
 
 ---
 
-## 1. Push to GitHub
+## 1. Make the package public (one-time)
 
-```bash
-git init
-git remote add origin https://github.com/YOUR_ORG/stage-display-content.git
-git add .
-git commit -m "initial commit"
-git push -u origin main
-```
-
-The GitHub Action (`.github/workflows/docker.yml`) triggers on every push to `main` and publishes the image to:
-
-```
-ghcr.io/YOUR_ORG/stage-display-content:latest
-```
-
-No secrets to configure — the workflow uses the built-in `GITHUB_TOKEN`.
-
----
-
-## 2. Make the package public (one-time)
-
-After the first successful build:
-
-1. Go to **github.com/YOUR_ORG** → **Packages** → `stage-display-content`
+1. Go to [github.com/TristonYoder](https://github.com/TristonYoder) → **Packages** → `stage-display-content`
 2. **Package settings** → Change visibility → **Public**
 
-Or leave it private and add `docker login ghcr.io` credentials on each server (see step 3b).
+Or leave it private and run `docker login ghcr.io` on each server before pulling.
 
 ---
 
-## 3. Deploy on a server
+## 2. Deploy on a server
 
-### a) Create the data files (first time only)
+### a) Create the data directory (first time only)
 
 ```bash
-mkdir -p /opt/stage-display
-cd /opt/stage-display
-
-# Persistent config and content
-cp /path/to/campuses.json .
+mkdir -p /opt/stage-display && cd /opt/stage-display
 echo '{}' > data.json
+```
+
+Download the default campus config:
+
+```bash
+curl -o campuses.json \
+  https://raw.githubusercontent.com/TristonYoder/stage-display-content/main/campuses.json
 ```
 
 ### b) Create `docker-compose.yml`
@@ -56,7 +42,7 @@ echo '{}' > data.json
 ```yaml
 services:
   stage-display:
-    image: ghcr.io/YOUR_ORG/stage-display-content:latest
+    image: ghcr.io/tristonyoder/stage-display-content:latest
     ports:
       - "7474:7474"
     volumes:
@@ -68,29 +54,27 @@ services:
 ### c) Pull and start
 
 ```bash
-cd /opt/stage-display
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
 The app is now running at `http://SERVER_IP:7474`.
 
 ---
 
-## 4. Updating
+## 3. Updating
 
-Every push to `main` rebuilds the image. To deploy the update on the server:
+Every push to `main` rebuilds the image. To deploy on the server:
 
 ```bash
 cd /opt/stage-display
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
-Or automate it with [Watchtower](https://containrrr.dev/watchtower/):
+### Automatic updates with Watchtower
+
+Add to `docker-compose.yml` to poll for new images every 5 minutes:
 
 ```yaml
-# add to docker-compose.yml
   watchtower:
     image: containrrr/watchtower
     volumes:
@@ -100,9 +84,9 @@ Or automate it with [Watchtower](https://containrrr.dev/watchtower/):
 
 ---
 
-## 5. Reverse proxy (optional)
+## 4. Reverse proxy (optional)
 
-To serve on port 80/443, put Nginx or Caddy in front:
+To serve on port 80/443, put Nginx or Caddy in front.
 
 **Caddyfile:**
 ```
@@ -123,11 +107,11 @@ server {
 }
 ```
 
-> The `X-Forwarded-For` header is required for dynamic RSS IP routing to work correctly behind a proxy.
+> `X-Forwarded-For` is required for dynamic RSS IP routing to work correctly behind a proxy.
 
 ---
 
-## Ports & URLs
+## URL reference
 
 | Purpose | URL |
 |---|---|
