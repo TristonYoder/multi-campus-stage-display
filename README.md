@@ -119,6 +119,37 @@ server {
 
 ---
 
+## NixOS deployment
+
+The flake exports a NixOS module. Add it to your `nix-config` flake:
+
+**`flake.nix` inputs:**
+```nix
+stage-display.url = "github:TristonYoder/stage-display-content";
+```
+
+**Pass it through to your host** (same pattern as other modules in `nix-config`):
+```nix
+# hosts/david/configuration.nix
+{ inputs, ... }: {
+  imports = [ inputs.stage-display.nixosModules.default ];
+  services.stage-display.enable = true;
+  # services.stage-display.port = 7474;   # optional, default 7474
+  # services.stage-display.dataDir = ...; # optional
+}
+```
+
+On first deploy, `campuses.json` is seeded from the repo into `dataDir`. `data.json` starts empty. Both files persist across container updates.
+
+To expose via Caddy (matching the vHosts pattern in `nix-config`):
+```nix
+modules.services.vHosts.hosts."stage.yourdomain.com" = {
+  reverseProxyPort = 7474;
+};
+```
+
+---
+
 ## RSS feed URLs
 
 | Type | URL |
