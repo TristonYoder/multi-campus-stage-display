@@ -1,0 +1,29 @@
+{
+  "slots": [
+    {"label": "Host-Pre",  "slug": "host-pre"},
+    {"label": "Host-Mid",  "slug": "host-mid"},
+    {"label": "Host-Post", "slug": "host-post"}
+  ],
+  "campuses": [
+    {
+      "id": "fishers",
+      "name": "Fishers",
+      "networks": ["10.10.1.0/24", "192.168.1.0/24"]
+    },
+    {
+      "id": "carmel",
+      "name": "Carmel",
+      "networks": ["10.10.2.0/24", "192.168.2.0/24"]
+    },
+    {
+      "id": "noblesville",
+      "name": "Noblesville",
+      "networks": ["10.10.3.0/24", "192.168.3.0/24"]
+    },
+    {
+      "id": "westfield",
+      "name": "Westfield",
+      "networks": ["10.10.4.0/24", "192.168.4.0/24"]
+    }
+  ]
+}

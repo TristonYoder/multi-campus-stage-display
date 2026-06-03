@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Stage Displays</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark:      #1e1e1e;
+    --bg-medium:    #2a2a2a;
+    --bg-light:     #2d2d2d;
+    --accent:       #ebe717;
+    --accent-hover: #f5f052;
+    --text:         #ffffff;
+    --text-muted:   #aaaaaa;
+    --border:       #444;
+    --radius:       8px;
+    --primary:      #3D5B58;
+    --positive:     #406B47;
+    --warning:      #892626;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Roboto Condensed', -apple-system, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-medium);
+  }
+  header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  header span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1.25rem 2rem 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 0.6rem 1.4rem;
+    background: var(--bg-medium);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    position: relative;
+    top: 1px;
+  }
+  .tab:hover { color: var(--text); background: var(--bg-light); }
+  .tab.active {
+    background: var(--bg-dark);
+    color: var(--accent);
+    border-color: var(--border);
+    border-bottom-color: var(--bg-dark);
+  }
+  .tab.config-tab { margin-left: auto; }
+
+  /* ── Content area ── */
+  .content {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Slot grid (campus panels) ── */
+  .slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .slot-card {
+    background: var(--bg-medium);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .slot-card label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  textarea {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: 0.75rem;
+    resize: vertical;
+    min-height: 130px;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .btn-save {
+    padding: 0.85rem 2.5rem;
+    background: var(--accent);
+    color: var(--primary);
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  }
+  .btn-save:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(235,231,23,0.35);
+  }
+  .btn-save:active { transform: translateY(0); }
+  .btn-secondary {
+    padding: 0.85rem 1.5rem;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--text-muted); }
+  .status-msg {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--positive);
+    opacity: 0;
+    transition: opacity 0.25s;
+    letter-spacing: 0.04em;
+  }
+  .status-msg.show { opacity: 1; }
+  .status-msg.error { color: var(--warning); }
+
+  /* ── RSS config panel ── */
+  .rss-section { margin-bottom: 2rem; }
+  .rss-section h2 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .rss-table { display: flex; flex-direction: column; gap: 0.5rem; }
+  .rss-row {
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-medium);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+  }
+  .rss-row-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .rss-url {
+    font-size: 0.85rem;
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .btn-copy {
+    padding: 0.4rem 1rem;
+    background: var(--bg-dark);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-copy:hover { color: var(--accent); border-color: var(--accent); }
+  .btn-copy.copied { color: var(--positive); border-color: var(--positive); }
+
+  /* ── Admin config panel ── */
+  .admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 800px) { .admin-grid { grid-template-columns: 1fr; } }
+
+  .admin-card {
+    background: var(--bg-medium);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .admin-card h2 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* editable rows */
+  .edit-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .edit-row {
+    display: grid;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .edit-row.slot-row  { grid-template-columns: 1fr auto auto; }
+  .edit-row.campus-row { grid-template-columns: 1fr 1fr auto; }
+
+  .edit-row input[type="text"] {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.55rem 0.75rem;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .edit-row input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .edit-row input[readonly] { color: var(--text-muted); cursor: default; }
+
+  .slug-preview {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: 'Courier New', monospace;
+    padding: 0 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .btn-remove {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-remove:hover { color: #fff; border-color: var(--warning); background: var(--warning); }
+
+  .btn-add {
+    padding: 0.6rem 1rem;
+    background: transparent;
+    color: var(--accent);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.15s;
+    width: 100%;
+    text-align: center;
+  }
+  .btn-add:hover { background: rgba(235,231,23,0.08); }
+
+  .col-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .col-headers { display: grid; gap: 0.5rem; padding: 0 0 0.25rem; }
+  .col-headers.slot-headers  { grid-template-columns: 1fr auto auto; }
+  .col-headers.campus-headers { grid-template-columns: 1fr 1fr auto; }
+
+  .admin-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 1rem; }
+    .tab-bar { padding: 1rem 1rem 0; }
+    .content { padding: 1rem; }
+    .rss-row { grid-template-columns: 1fr auto; }
+    .rss-row-label { display: none; }
+    .edit-row.campus-row {
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+    }
+    .edit-row.campus-row .network-input {
+      grid-column: 1;
+    }
+    .edit-row.campus-row .btn-remove {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      align-self: center;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Campus Stage Displays</h1>
+  <span>Cmd+S to save</span>
+</header>
+
+<nav class="tab-bar" id="tabBar">
+  {% for campus in campuses %}
+  <button class="tab{% if loop.first %} active{% endif %}"
+          data-campus="{{ campus.id }}"
+          onclick="switchTab('{{ campus.id }}')">
+    {{ campus.name }}
+  </button>
+  {% endfor %}
+  <button class="tab config-tab" data-campus="__rss" onclick="switchTab('__rss')">ProPresenter Config</button>
+  <button class="tab" data-campus="__config" onclick="switchTab('__config')">Settings</button>
+</nav>
+
+<div class="content">
+
+  <!-- ── Campus panels ── -->
+  {% for campus in campuses %}
+  <div class="panel{% if loop.first %} active{% endif %}" id="panel-{{ campus.id }}">
+    <div class="slot-grid">
+      {% for slot in slots %}
+      <div class="slot-card">
+        <label>{{ slot.label }}</label>
+        <textarea id="{{ campus.id }}-{{ slot.slug }}"
+                  placeholder="{{ slot.label }} content..."></textarea>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="toolbar">
+      <button class="btn-save" onclick="saveCampus('{{ campus.id }}')">Save</button>
+      <button class="btn-secondary" onclick="clearCampus('{{ campus.id }}')">Clear</button>
+      <span class="status-msg" id="status-{{ campus.id }}"></span>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- ── RSS panel ── -->
+  <div class="panel" id="panel-__rss">
+
+    <div class="rss-section">
+      <h2>Dynamic RSS — routes by requesting IP</h2>
+      <div class="rss-table">
+        {% for slot in slots %}
+        <div class="rss-row">
+          <span class="rss-row-label">{{ slot.label }}</span>
+          <span class="rss-url">/rss/dynamic/{{ slot.slug }}</span>
+          <button class="btn-copy" onclick="copyUrl(this, '/rss/dynamic/{{ slot.slug }}')">Copy</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% for campus in campuses %}
+    <div class="rss-section">
+      <h2>{{ campus.name }}</h2>
+      <div class="rss-table">
+        {% for slot in slots %}
+        <div class="rss-row">
+          <span class="rss-row-label">{{ slot.label }}</span>
+          <span class="rss-url">/rss/{{ campus.id }}/{{ slot.slug }}</span>
+          <button class="btn-copy" onclick="copyUrl(this, '/rss/{{ campus.id }}/{{ slot.slug }}')">Copy</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+  </div>
+
+  <!-- ── Settings panel ── -->
+  <div class="panel" id="panel-__config">
+    <div class="admin-grid">
+
+      <!-- Display Types -->
+      <div class="admin-card">
+        <h2>Display Types</h2>
+        <div class="col-headers slot-headers">
+          <span class="col-header">Label</span>
+          <span class="col-header">Slug</span>
+          <span></span>
+        </div>
+        <div class="edit-list" id="slotList">
+          {% for slot in slots %}
+          <div class="edit-row slot-row">
+            <input type="text" class="slot-label" value="{{ slot.label }}"
+                   placeholder="Label" oninput="updateSlugPreview(this)">
+            <span class="slug-preview">{{ slot.slug }}</span>
+            <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
+          </div>
+          {% endfor %}
+        </div>
+        <button class="btn-add" onclick="addSlot()">+ Add Display Type</button>
+      </div>
+
+      <!-- Campuses -->
+      <div class="admin-card">
+        <h2>Campuses</h2>
+        <div class="col-headers campus-headers">
+          <span class="col-header">Name</span>
+          <span class="col-header">IP Range (CIDR)</span>
+          <span></span>
+        </div>
+        <div class="edit-list" id="campusList">
+          {% for campus in campuses %}
+          <div class="edit-row campus-row" data-id="{{ campus.id }}">
+            <input type="text" class="campus-name" value="{{ campus.name }}"
+                   placeholder="Campus name" oninput="updateCampusSlug(this)">
+            <input type="text" class="campus-networks network-input"
+                   value="{{ campus.networks | join(', ') }}"
+                   placeholder="10.10.1.0/24, …">
+            <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
+          </div>
+          {% endfor %}
+        </div>
+        <button class="btn-add" onclick="addCampus()">+ Add Campus</button>
+      </div>
+
+    </div>
+
+    <div class="admin-footer">
+      <button class="btn-save" onclick="saveConfig()">Save Settings</button>
+      <span class="status-msg" id="status-config"></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Slot keys from server ──────────────────────────────────────────────────
+  const SLOT_SLUGS = {{ slots | map(attribute='slug') | list | tojson }};
+  let active = '{{ campuses[0].id if campuses else "__config" }}';
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  function switchTab(id) {
+    active = id;
+    document.querySelectorAll('.tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.campus === id));
+    document.querySelectorAll('.panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'panel-' + id));
+    if (id !== '__rss' && id !== '__config') loadContent(id);
+  }
+
+  // ── Campus content ────────────────────────────────────────────────────────
+  async function loadContent(campusId) {
+    const r = await fetch(`/api/content/${campusId}`);
+    const data = await r.json();
+    SLOT_SLUGS.forEach(slug => {
+      const key = slug.replace(/-/g, '_');
+      const el = document.getElementById(`${campusId}-${slug}`);
+      if (el) el.value = data[key] || '';
+    });
+  }
+
+  async function saveCampus(campusId) {
+    const body = {};
+    SLOT_SLUGS.forEach(slug => {
+      const key = slug.replace(/-/g, '_');
+      const el = document.getElementById(`${campusId}-${slug}`);
+      body[key] = el ? el.value : '';
+    });
+    const r = await fetch(`/api/content/${campusId}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    flash(`status-${campusId}`, r.ok ? 'Saved' : 'Error', !r.ok);
+  }
+
+  function clearCampus(campusId) {
+    SLOT_SLUGS.forEach(slug => {
+      const el = document.getElementById(`${campusId}-${slug}`);
+      if (el) el.value = '';
+    });
+  }
+
+  // ── RSS copy ──────────────────────────────────────────────────────────────
+  function copyUrl(btn, path) {
+    navigator.clipboard.writeText(window.location.origin + path).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  function toSlug(str) {
+    return str.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function updateSlugPreview(input) {
+    const preview = input.closest('.edit-row').querySelector('.slug-preview');
+    if (preview) preview.textContent = toSlug(input.value);
+  }
+
+  function updateCampusSlug(input) {
+    const row = input.closest('.edit-row');
+    row.dataset.id = toSlug(input.value);
+  }
+
+  function removeRow(btn) {
+    btn.closest('.edit-row').remove();
+  }
+
+  function addSlot() {
+    const row = document.createElement('div');
+    row.className = 'edit-row slot-row';
+    row.innerHTML = `
+      <input type="text" class="slot-label" placeholder="Label" oninput="updateSlugPreview(this)">
+      <span class="slug-preview"></span>
+      <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
+    document.getElementById('slotList').appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  function addCampus() {
+    const row = document.createElement('div');
+    row.className = 'edit-row campus-row';
+    row.dataset.id = '';
+    row.innerHTML = `
+      <input type="text" class="campus-name" placeholder="Campus name" oninput="updateCampusSlug(this)">
+      <input type="text" class="campus-networks network-input" placeholder="10.10.1.0/24">
+      <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
+    document.getElementById('campusList').appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  async function saveConfig() {
+    const slots = [...document.querySelectorAll('#slotList .edit-row')].map(row => ({
+      label: row.querySelector('.slot-label').value.trim(),
+      slug:  toSlug(row.querySelector('.slot-label').value),
+    })).filter(s => s.label);
+
+    const campuses = [...document.querySelectorAll('#campusList .edit-row')].map(row => {
+      const name = row.querySelector('.campus-name').value.trim();
+      const nets = row.querySelector('.campus-networks').value
+        .split(',').map(s => s.trim()).filter(Boolean);
+      return { id: toSlug(name), name, networks: nets };
+    }).filter(c => c.name);
+
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ slots, campuses }),
+    });
+    if (r.ok) {
+      flash('status-config', 'Saved — reloading…');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      flash('status-config', 'Error saving', true);
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function flash(id, msg, isError = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'status-msg show' + (isError ? ' error' : '');
+    setTimeout(() => el.className = 'status-msg', 2500);
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (active === '__config') saveConfig();
+      else if (active !== '__rss') saveCampus(active);
+    }
+  });
+
+  // Route by URL path: /fishers → switch to that campus tab
+  const pathSlug = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
+  const validTabs = new Set([...document.querySelectorAll('.tab')].map(t => t.dataset.campus));
+  if (pathSlug && validTabs.has(pathSlug)) {
+    switchTab(pathSlug);
+  } else if (active !== '__config' && active !== '__rss') {
+    loadContent(active);
+  }
+</script>
+</body>
+</html>
