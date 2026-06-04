@@ -14,6 +14,11 @@ import rumps
 
 PORT = 6767
 
+# Resolve bundled resource path (works both in .app and plain Python)
+def _resource(name: str) -> str:
+    base = getattr(sys, "_MEIPASS", Path(__file__).parent)
+    return str(Path(base) / name)
+
 # ── Data directory ────────────────────────────────────────────────────────────
 # Use ~/Library/Application Support/ so data survives app updates.
 DATA_DIR = Path.home() / "Library" / "Application Support" / "Multi-Campus Stage Display"
@@ -47,7 +52,8 @@ class StageDisplayApp(rumps.App):
     def __init__(self):
         super().__init__(
             name="Multi-Campus Stage Display",
-            title="⬛",
+            icon=_resource("icon.png"),
+            template=True,
             quit_button=rumps.MenuItem("Quit Multi-Campus Stage Display"),
         )
         self.menu = [

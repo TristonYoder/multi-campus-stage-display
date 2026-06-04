@@ -89,6 +89,7 @@ jobs:
             --icon icon.icns \
             --add-data "templates/index.html:templates" \
             --add-data "campuses.json:." \
+            --add-data "icon.png:." \
             --hidden-import flask \
             --hidden-import jinja2 \
             --hidden-import werkzeug \
