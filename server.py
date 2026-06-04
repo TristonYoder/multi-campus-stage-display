@@ -12,6 +12,14 @@ from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
+# Notification hook — set by app.py when running as the macOS menu bar app.
+# Signature: notify_hook(campus_name: str, slot_label: str)
+_notify_hook = None
+
+def set_notify_hook(fn):
+    global _notify_hook
+    _notify_hook = fn
+
 # When bundled as a .app, data lives in ~/Library/Application Support/
 # so it persists across app updates. Override with STAGE_DISPLAY_DATA_DIR.
 _default_data_dir = Path(__file__).parent
@@ -143,6 +151,19 @@ def api_post(campus_id):
         data = load_data()
         data.setdefault(campus_id, {}).update(body)
         save_data(data)
+
+    if _notify_hook:
+        slots = load_slots()
+        campus_name = next(
+            (c["name"] for c in load_campuses() if c["id"] == campus_id),
+            campus_id.title(),
+        )
+        ts = datetime.now().strftime("%Y.%m.%d %H:%M")
+        for slot in slots:
+            key = slug_to_key(slot["slug"])
+            if key in body:
+                _notify_hook(slot["label"], campus_name, ts)
+
     return jsonify({"ok": True})
 
 

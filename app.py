@@ -29,7 +29,17 @@ if not (DATA_DIR / "data.json").exists():
     (DATA_DIR / "data.json").write_text("{}")
 
 # Import server after env var is set
-from server import app as flask_app  # noqa: E402
+from server import app as flask_app, set_notify_hook  # noqa: E402
+
+
+def _send_notification(slot_label: str, campus_name: str, ts: str):
+    """Called from a Flask worker thread whenever content is saved."""
+    rumps.notification(
+        title=f"{slot_label} updated",
+        subtitle=campus_name,
+        message=ts,
+        sound=False,
+    )
 
 
 # ── Menu bar app ──────────────────────────────────────────────────────────────
@@ -46,6 +56,7 @@ class StageDisplayApp(rumps.App):
             rumps.MenuItem("Open in Browser", callback=self.open_browser),
             None,
         ]
+        set_notify_hook(_send_notification)
         self._start_server()
 
     def _start_server(self):
