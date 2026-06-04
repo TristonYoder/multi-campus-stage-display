@@ -504,9 +504,25 @@
 
 </div>
 
+<!-- Save confirmation modal -->
+<div id="save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#2a2a2a;border:1px solid #444;border-radius:12px;padding:32px 36px;max-width:420px;width:90%;text-align:center;">
+    <p style="font-size:1.15rem;font-weight:600;margin:0 0 10px;color:#f0f0f0;">
+      Updating <span id="modal-campus" style="color:#e05555;font-weight:700;"></span>'s Confidence Monitor
+    </p>
+    <p style="color:#aaa;margin:0 0 28px;font-size:.95rem;">Content will be replaced live on this view.</p>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button onclick="modalCancel()" style="padding:10px 24px;border-radius:6px;border:1px solid #555;background:transparent;color:#ccc;cursor:pointer;font-size:.95rem;">Cancel</button>
+      <button onclick="modalConfirm()" style="padding:10px 24px;border-radius:6px;border:none;background:#ebe717;color:#1e1e1e;cursor:pointer;font-weight:700;font-size:.95rem;">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── Slot keys from server ──────────────────────────────────────────────────
   const SLOT_SLUGS = {{ slots | map(attribute='slug') | list | tojson }};
+  const CAMPUS_NAMES = Object.fromEntries({{ campuses | tojson }}.map(c => [c.id, c.name]));
+
   let active = '{{ campuses[0].id if campuses else "__config" }}';
 
   // ── Tab switching ─────────────────────────────────────────────────────────
@@ -530,7 +546,24 @@
     });
   }
 
-  async function saveCampus(campusId) {
+  let _pendingSave = null;
+
+  function saveCampus(campusId) {
+    document.getElementById('modal-campus').textContent = CAMPUS_NAMES[campusId] || campusId;
+    const modal = document.getElementById('save-modal');
+    modal.style.display = 'flex';
+    _pendingSave = campusId;
+  }
+
+  function modalCancel() {
+    document.getElementById('save-modal').style.display = 'none';
+    _pendingSave = null;
+  }
+
+  async function modalConfirm() {
+    document.getElementById('save-modal').style.display = 'none';
+    const campusId = _pendingSave;
+    _pendingSave = null;
     const body = {};
     SLOT_SLUGS.forEach(slug => {
       const key = slug.replace(/-/g, '_');
