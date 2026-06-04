@@ -116,7 +116,7 @@ def _render_index(initial_tab=None):
     campuses = cfg.get("campuses", [])
     if initial_tab is None:
         ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
-        initial_tab = campus_for_ip(ip) or (campuses[0]["id"] if campuses else None)
+        initial_tab = campus_for_ip(ip)  # None = no match → landing state
     return render_template("index.html",
                            campuses=campuses,
                            slots=cfg.get("slots", []),

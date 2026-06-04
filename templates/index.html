@@ -93,6 +93,16 @@
   }
   .panel { display: none; }
   .panel.active { display: block; }
+  .landing-panel.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    gap: 12px;
+    color: #666;
+    text-align: center;
+  }
 
   /* ── Slot grid (campus panels) ── */
   .slot-grid {
@@ -381,7 +391,7 @@
 
 <nav class="tab-bar" id="tabBar">
   {% for campus in campuses %}
-  <button class="tab{% if loop.first %} active{% endif %}"
+  <button class="tab"
           data-campus="{{ campus.id }}"
           onclick="switchTab('{{ campus.id }}')">
     {{ campus.name }}
@@ -393,9 +403,16 @@
 
 <div class="content">
 
+  <!-- ── Landing panel (no campus detected) ── -->
+  <div class="panel landing-panel" id="panel-__landing">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    <p style="margin:0;font-size:1.1rem;font-weight:600;color:#888;">Select a campus above</p>
+    <p style="margin:0;font-size:.85rem;">Your location wasn't automatically detected.</p>
+  </div>
+
   <!-- ── Campus panels ── -->
   {% for campus in campuses %}
-  <div class="panel{% if loop.first %} active{% endif %}" id="panel-{{ campus.id }}">
+  <div class="panel" id="panel-{{ campus.id }}">
     <div class="slot-grid">
       {% for slot in slots %}
       <div class="slot-card">
@@ -523,7 +540,7 @@
   const SLOT_SLUGS = {{ slots | map(attribute='slug') | list | tojson }};
   const CAMPUS_NAMES = Object.fromEntries({{ campuses | tojson }}.map(c => [c.id, c.name]));
 
-  let active = '{{ initial_tab or (campuses[0].id if campuses else "__config") }}';
+  let active = '{{ initial_tab or "__landing" }}';
 
   // ── Tab switching ─────────────────────────────────────────────────────────
   function switchTab(id) {
@@ -686,8 +703,8 @@
   const validTabs = new Set([...document.querySelectorAll('.tab')].map(t => t.dataset.campus));
   if (pathSlug && validTabs.has(pathSlug)) {
     switchTab(pathSlug);
-  } else if (active !== '__config' && active !== '__rss') {
-    loadContent(active);
+  } else {
+    switchTab(active);
   }
 </script>
 </body>
