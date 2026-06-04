@@ -434,7 +434,7 @@
   <div class="panel" id="panel-__rss">
 
     <div class="rss-section">
-      <h2>Dynamic RSS — routes by requesting IP</h2>
+      <h2>Dynamic RSS: routes by requesting IP</h2>
       <div class="rss-table">
         {% for slot in slots %}
         <div class="rss-row">
@@ -604,11 +604,28 @@
 
   // ── RSS copy ──────────────────────────────────────────────────────────────
   function copyUrl(btn, path) {
-    navigator.clipboard.writeText(window.location.origin + path).then(() => {
+    const url = window.location.origin + path;
+    const confirm = () => {
       btn.textContent = 'Copied!';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-    });
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(confirm).catch(() => fallbackCopy(btn, url, confirm));
+    } else {
+      fallbackCopy(btn, url, confirm);
+    }
+  }
+
+  function fallbackCopy(btn, text, confirm) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); confirm(); } catch(e) { btn.textContent = 'Failed'; }
+    document.body.removeChild(ta);
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────
