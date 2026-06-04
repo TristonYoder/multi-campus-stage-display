@@ -1,16 +1,12 @@
 {
   "slots": [
     {
-      "label": "Host-Pre",
+      "label": "Host Pre",
       "slug": "host-pre"
     },
     {
-      "label": "Host-Mid",
-      "slug": "host-mid"
-    },
-    {
-      "label": "Host-Post",
-      "slug": "host-post"
+      "label": "Service",
+      "slug": "service"
     }
   ],
   "campuses": [
