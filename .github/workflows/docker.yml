@@ -86,8 +86,8 @@ jobs:
       - name: Patch Info.plist (menu bar only, no Dock icon)
         run: |
           PLIST="dist/Campus Stage Displays.app/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true"       "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" || \
+          /usr/libexec/PlistBuddy -c "Set :LSUIElement true"      "$PLIST"
 
       - name: Create .dmg
         run: |
