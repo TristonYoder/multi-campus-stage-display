@@ -24,6 +24,19 @@ python3 server.py
 
 ---
 
+## macOS app
+
+Download `CampusStageDisplays.dmg` from the latest [Actions run artifacts](https://github.com/TristonYoder/stage-display-content/actions), mount it, and drag to Applications.
+
+The app runs as a **menu bar icon** (no Dock icon). Click it → **Open in Browser** to launch the UI. Data is stored in `~/Library/Application Support/Campus Stage Displays/` and persists across updates.
+
+To build locally:
+```bash
+pip install -r requirements-mac.txt
+python setup.py py2app
+open "dist/Campus Stage Displays.app"
+```
+
 ## Docker (local)
 
 ```bash

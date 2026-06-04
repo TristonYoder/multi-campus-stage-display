@@ -12,8 +12,12 @@ from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
-CAMPUSES_FILE = Path(__file__).parent / "campuses.json"
-DATA_FILE     = Path(__file__).parent / "data.json"
+# When bundled as a .app, data lives in ~/Library/Application Support/
+# so it persists across app updates. Override with STAGE_DISPLAY_DATA_DIR.
+_default_data_dir = Path(__file__).parent
+DATA_DIR      = Path(os.environ.get("STAGE_DISPLAY_DATA_DIR", _default_data_dir))
+CAMPUSES_FILE = DATA_DIR / "campuses.json"
+DATA_FILE     = DATA_DIR / "data.json"
 
 _lock = threading.Lock()
 
