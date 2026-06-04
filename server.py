@@ -149,6 +149,7 @@ def api_post(campus_id):
     body = request.get_json(force=True)
     with _lock:
         data = load_data()
+        old_campus = dict(data.get(campus_id, {}))
         data.setdefault(campus_id, {}).update(body)
         save_data(data)
 
@@ -159,10 +160,15 @@ def api_post(campus_id):
             campus_id.title(),
         )
         ts = datetime.now().strftime("%Y.%m.%d %H:%M")
-        for slot in slots:
-            key = slug_to_key(slot["slug"])
-            if key in body:
-                _notify_hook(slot["label"], campus_name, ts)
+        # Only notify for slots whose value actually changed
+        # old_campus captured before save (inside the lock above)
+        changed = [
+            slot["label"] for slot in slots
+            if slug_to_key(slot["slug"]) in body
+            and body[slug_to_key(slot["slug"])] != old_campus.get(slug_to_key(slot["slug"]), "")
+        ]
+        if changed:
+            _notify_hook(", ".join(changed), campus_name, ts)
 
     return jsonify({"ok": True})
 

@@ -63,7 +63,7 @@ class StageDisplayApp(rumps.App):
         super().__init__(
             name="Multi-Campus Stage Display",
             icon=_resource("icon.png"),
-            template=True,
+            template=False,
             quit_button=rumps.MenuItem("Quit Multi-Campus Stage Display"),
         )
         self.menu = [
