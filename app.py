@@ -11,8 +11,10 @@ import webbrowser
 from pathlib import Path
 
 import json
+import ssl
 import urllib.request
 
+import certifi
 import rumps
 
 PORT = 6767
@@ -91,7 +93,8 @@ class StageDisplayApp(rumps.App):
         try:
             url = f"https://api.github.com/repos/{REPO}/releases/latest"
             req = urllib.request.Request(url, headers={"User-Agent": "MultiCampusStageDisplay"})
-            with urllib.request.urlopen(req, timeout=5) as r:
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as r:
                 data = json.loads(r.read())
             latest = data.get("tag_name", "").lstrip("v")
             current = _current_version()

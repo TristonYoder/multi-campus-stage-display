@@ -126,13 +126,17 @@ jobs:
             --hidden-import click \
             --hidden-import itsdangerous \
             --hidden-import markupsafe \
+            --hidden-import certifi \
+            --collect-data certifi \
             --osx-bundle-identifier "studio.7andco.stage-display"
 
-      - name: Patch Info.plist (menu bar only, no Dock icon)
+      - name: Patch Info.plist (menu bar only, no Dock icon; set bundle icon)
         run: |
           PLIST="dist/Multi-Campus Stage Display.app/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" || \
-          /usr/libexec/PlistBuddy -c "Set :LSUIElement true"      "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true"                    "$PLIST" || \
+          /usr/libexec/PlistBuddy -c "Set :LSUIElement true"                         "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string icon"             "$PLIST" || \
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile icon"                    "$PLIST"
 
       - name: Ad-hoc sign .app (suppresses "damaged" Gatekeeper warning)
         run: |
