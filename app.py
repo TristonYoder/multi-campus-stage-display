@@ -134,5 +134,12 @@ class StageDisplayApp(rumps.App):
         webbrowser.open(f"http://localhost:{PORT}")
 
 
+@rumps.notifications
+def notification_center(info):
+    title = info.get("title", "")
+    if title == "Update Available":
+        webbrowser.open(f"https://github.com/{REPO}/releases/latest")
+
+
 if __name__ == "__main__":
     StageDisplayApp().run()
