@@ -59,17 +59,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Python (framework build via Homebrew)
-        run: brew install python@3.12
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Create venv and install dependencies
-        run: |
-          /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv venv --copies
-          venv/bin/pip install --upgrade pip setuptools
-          venv/bin/pip install -r requirements-mac.txt
+      - name: Install dependencies
+        run: pip install -r requirements-mac.txt
 
       - name: Build .app
-        run: venv/bin/python setup.py py2app
+        run: |
+          pyinstaller app.py \
+            --name "Campus Stage Displays" \
+            --windowed \
+            --noconfirm \
+            --add-data "templates/index.html:templates" \
+            --add-data "campuses.json:." \
+            --hidden-import flask \
+            --hidden-import jinja2 \
+            --hidden-import werkzeug \
+            --hidden-import click \
+            --hidden-import itsdangerous \
+            --hidden-import markupsafe \
+            --osx-bundle-identifier "studio.7andco.stage-display" \
+            --info-plist Info.plist
 
       - name: Create .dmg
         run: |
