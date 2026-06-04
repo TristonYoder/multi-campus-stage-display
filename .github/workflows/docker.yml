@@ -145,9 +145,12 @@ jobs:
 
       - name: Create .dmg
         run: |
+          mkdir -p dist/dmg
+          cp -r "dist/Multi-Campus Stage Display.app" dist/dmg/
+          ln -s /Applications dist/dmg/Applications
           hdiutil create \
             -volname "Multi-Campus Stage Display" \
-            -srcfolder "dist/Multi-Campus Stage Display.app" \
+            -srcfolder dist/dmg \
             -ov -format UDZO \
             "dist/MultiCampusStageDisplay.dmg"
 
