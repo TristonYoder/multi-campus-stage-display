@@ -81,8 +81,13 @@ jobs:
             --hidden-import click \
             --hidden-import itsdangerous \
             --hidden-import markupsafe \
-            --osx-bundle-identifier "studio.7andco.stage-display" \
-            --info-plist Info.plist
+            --osx-bundle-identifier "studio.7andco.stage-display"
+
+      - name: Patch Info.plist (menu bar only, no Dock icon)
+        run: |
+          PLIST="dist/Campus Stage Displays.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true"       "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$PLIST"
 
       - name: Create .dmg
         run: |
