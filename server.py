@@ -111,11 +111,16 @@ def make_rss(campus_id, slot_slug, base_url):
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 
-def _render_index():
+def _render_index(initial_tab=None):
     cfg = load_config()
+    campuses = cfg.get("campuses", [])
+    if initial_tab is None:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+        initial_tab = campus_for_ip(ip) or (campuses[0]["id"] if campuses else None)
     return render_template("index.html",
-                           campuses=cfg.get("campuses", []),
-                           slots=cfg.get("slots", []))
+                           campuses=campuses,
+                           slots=cfg.get("slots", []),
+                           initial_tab=initial_tab)
 
 @app.route("/")
 def index():
@@ -126,7 +131,7 @@ def campus_route(slug):
     # Only serve the UI for known campus IDs / special tabs; let other routes 404 naturally
     known = {c["id"] for c in load_campuses()} | {"__rss", "__config", "rss", "settings"}
     if slug in known:
-        return _render_index()
+        return _render_index(initial_tab=slug)
     return "Not found", 404
 
 

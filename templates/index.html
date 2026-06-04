@@ -523,7 +523,7 @@
   const SLOT_SLUGS = {{ slots | map(attribute='slug') | list | tojson }};
   const CAMPUS_NAMES = Object.fromEntries({{ campuses | tojson }}.map(c => [c.id, c.name]));
 
-  let active = '{{ campuses[0].id if campuses else "__config" }}';
+  let active = '{{ initial_tab or (campuses[0].id if campuses else "__config") }}';
 
   // ── Tab switching ─────────────────────────────────────────────────────────
   function switchTab(id) {
