@@ -77,6 +77,7 @@ class StageDisplayApp(rumps.App):
             rumps.MenuItem("Multi-Campus Stage Display", callback=None),
             None,
             rumps.MenuItem("Open in Browser", callback=self.open_browser),
+            rumps.MenuItem("Check for Updates…", callback=self._check_for_update),
             None,
         ]
         set_notify_hook(_send_notification)
@@ -85,7 +86,8 @@ class StageDisplayApp(rumps.App):
         rumps.Timer(self._check_for_update, 86400).start()
         self._check_for_update(None)
 
-    def _check_for_update(self, _):
+    def _check_for_update(self, sender):
+        manual = sender is not None  # False when called by the timer
         try:
             url = f"https://api.github.com/repos/{REPO}/releases/latest"
             req = urllib.request.Request(url, headers={"User-Agent": "MultiCampusStageDisplay"})
@@ -100,8 +102,21 @@ class StageDisplayApp(rumps.App):
                     message="Download the latest DMG from GitHub releases.",
                     sound=False,
                 )
+            elif manual:
+                rumps.notification(
+                    title="You're up to date",
+                    subtitle=f"Multi-Campus Stage Display {current}",
+                    message="No updates available.",
+                    sound=False,
+                )
         except Exception:
-            pass
+            if manual:
+                rumps.notification(
+                    title="Update check failed",
+                    subtitle="Could not reach GitHub.",
+                    message="Check your internet connection and try again.",
+                    sound=False,
+                )
 
     def _start_server(self):
         t = threading.Thread(
