@@ -91,7 +91,7 @@ def make_rss(campus_id, slot_slug, base_url):
     )
     title = f"{campus_name} – {label}"
     pub = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
-    item_title = escape(content[:80]) if content else "(empty)"
+    item_title = escape(content) if content else "(empty)"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
