@@ -229,5 +229,5 @@ def rss_static(campus_id, slot_slug):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7474))
+    port = int(os.environ.get("PORT", 6767))
     app.run(host="0.0.0.0", port=port)

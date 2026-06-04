@@ -14,7 +14,7 @@
 
           port = lib.mkOption {
             type    = lib.types.port;
-            default = 7474;
+            default = 6767;
             description = "Host port the app listens on.";
           };
 
@@ -44,7 +44,7 @@
             image      = "ghcr.io/tristonyoder/multi-campus-stage-display:latest";
             autoStart  = true;
             log-driver = "journald";
-            ports      = [ "${toString cfg.port}:7474/tcp" ];
+            ports      = [ "${toString cfg.port}:6767" ];
             volumes    = [
               "${cfg.dataDir}/campuses.json:/app/campuses.json:rw"
               "${cfg.dataDir}/data.json:/app/data.json:rw"

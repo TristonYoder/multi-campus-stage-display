@@ -2,10 +2,10 @@ services:
   stage-display:
     build: .
     ports:
-      - "7474:7474"
+      - "6767:6767"
     volumes:
       - ./data.json:/app/data.json
       - ./campuses.json:/app/campuses.json
     restart: always
     environment:
-      - PORT=7474
+      - PORT=6767

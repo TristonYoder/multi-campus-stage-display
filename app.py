@@ -12,7 +12,7 @@ from pathlib import Path
 
 import rumps
 
-PORT = 7474
+PORT = 6767
 
 # ── Data directory ────────────────────────────────────────────────────────────
 # Use ~/Library/Application Support/ so data survives app updates.

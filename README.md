@@ -19,7 +19,7 @@ A web app for managing ProPresenter stage display content across multiple campus
 ```bash
 python3 -m pip install flask
 python3 server.py
-# open http://localhost:7474
+# open http://localhost:6767
 ```
 
 ---
@@ -42,7 +42,7 @@ open "dist/Multi-Campus Stage Display.app"
 
 ```bash
 docker compose up -d
-# open http://localhost:7474
+# open http://localhost:6767
 ```
 
 ---
@@ -78,7 +78,7 @@ services:
   stage-display:
     image: ghcr.io/tristonyoder/multi-campus-stage-display:latest
     ports:
-      - "7474:7474"
+      - "6767:6767"
     volumes:
       - ./campuses.json:/app/campuses.json
       - ./data.json:/app/data.json
@@ -113,7 +113,7 @@ Add to `docker-compose.yml` to poll for new images every 5 minutes:
 **Caddyfile:**
 ```
 stagedisplay.yourdomain.com {
-    reverse_proxy localhost:7474
+    reverse_proxy localhost:6767
 }
 ```
 
@@ -123,7 +123,7 @@ server {
     listen 80;
     server_name stagedisplay.yourdomain.com;
     location / {
-        proxy_pass http://localhost:7474;
+        proxy_pass http://localhost:6767;
         proxy_set_header X-Forwarded-For $remote_addr;
     }
 }
@@ -148,7 +148,7 @@ stage-display.url = "github:TristonYoder/multi-campus-stage-display";
 { inputs, ... }: {
   imports = [ inputs.stage-display.nixosModules.default ];
   services.stage-display.enable = true;
-  # services.stage-display.port = 7474;   # optional, default 7474
+  # services.stage-display.port = 6767;   # optional, default 6767
   # services.stage-display.dataDir = ...; # optional
 }
 ```
@@ -158,7 +158,7 @@ On first deploy, `campuses.json` is seeded from the repo into `dataDir`. `data.j
 To expose via Caddy (matching the vHosts pattern in `nix-config`):
 ```nix
 modules.services.vHosts.hosts."stage.yourdomain.com" = {
-  reverseProxyPort = 7474;
+  reverseProxyPort = 6767;
 };
 ```
 
@@ -190,7 +190,7 @@ Both files are volume-mounted in Docker and read on every request — edit them 
 
 | Purpose | URL |
 |---|---|
-| Editor UI | `http://SERVER_IP:7474` |
-| Campus direct link | `http://SERVER_IP:7474/fishers` |
-| Static RSS feed | `http://SERVER_IP:7474/rss/fishers/host-pre` |
-| Dynamic RSS (by IP) | `http://SERVER_IP:7474/rss/dynamic/host-pre` |
+| Editor UI | `http://SERVER_IP:6767` |
+| Campus direct link | `http://SERVER_IP:6767/fishers` |
+| Static RSS feed | `http://SERVER_IP:6767/rss/fishers/host-pre` |
+| Dynamic RSS (by IP) | `http://SERVER_IP:6767/rss/dynamic/host-pre` |
