@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 env:
@@ -13,8 +11,30 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # ── Compute version (yyyy.mm.dd.N) ───────────────────────────────────────────
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - name: Compute daily version
+        id: compute
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y.%m.%d)
+          COUNT=$(gh api repos/${{ github.repository }}/releases \
+            --jq "[.[] | select(.tag_name | startswith(\"$DATE.\"))] | length" \
+            2>/dev/null || echo "0")
+          VERSION="$DATE.$((COUNT + 1))"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version: $VERSION"
+
   # ── Docker image ─────────────────────────────────────────────────────────────
   build-docker:
+    needs: version
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,8 +61,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -56,9 +76,10 @@ jobs:
 
   # ── macOS .app + .dmg ────────────────────────────────────────────────────────
   build-mac-app:
+    needs: version
     runs-on: macos-latest
     permissions:
-      contents: write  # needed to create GitHub releases
+      contents: write
 
     steps:
       - name: Checkout
@@ -71,6 +92,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements-mac.txt
+
+      - name: Write VERSION file
+        run: echo "${{ needs.version.outputs.version }}" > VERSION
 
       - name: Build icon.icns from icon.png
         run: |
@@ -130,9 +154,16 @@ jobs:
           path: dist/MultiCampusStageDisplay.dmg
           retention-days: 30
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/MultiCampusStageDisplay.dmg
-          generate_release_notes: true
+      - name: Tag and create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          gh release create "$VERSION" \
+            dist/MultiCampusStageDisplay.dmg \
+            --title "$VERSION" \
+            --generate-notes
