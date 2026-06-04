@@ -1,6 +1,6 @@
-# Campus Stage Displays
+# Multi-Campus Stage Display
 
-[![Build & Push Docker Image](https://github.com/TristonYoder/stage-display-content/actions/workflows/docker.yml/badge.svg)](https://github.com/TristonYoder/stage-display-content/actions/workflows/docker.yml)
+[![Build & Push Docker Image](https://github.com/TristonYoder/multi-campus-stage-display/actions/workflows/docker.yml/badge.svg)](https://github.com/TristonYoder/multi-campus-stage-display/actions/workflows/docker.yml)
 
 A web app for managing ProPresenter stage display content across multiple campuses. Each campus has editable display slots (Host-Pre, Host-Mid, Host-Post) served as RSS feeds — consumed directly by ProPresenter's stage display.
 
@@ -26,15 +26,16 @@ python3 server.py
 
 ## macOS app
 
-Download `CampusStageDisplays.dmg` from the latest [Actions run artifacts](https://github.com/TristonYoder/stage-display-content/actions), mount it, and drag to Applications.
+Download `MultiCampusStageDisplay.dmg` from the latest [Actions run artifacts](https://github.com/TristonYoder/multi-campus-stage-display/actions), mount it, and drag to Applications.
 
-The app runs as a **menu bar icon** (no Dock icon). Click it → **Open in Browser** to launch the UI. Data is stored in `~/Library/Application Support/Campus Stage Displays/` and persists across updates.
+The app runs as a **menu bar icon** (no Dock icon). Click it → **Open in Browser** to launch the UI. Data is stored in `~/Library/Application Support/Multi-Campus Stage Display/` and persists across updates.
 
 To build locally:
 ```bash
 pip install -r requirements-mac.txt
-python setup.py py2app
-open "dist/Campus Stage Displays.app"
+pyinstaller app.py --name "Multi-Campus Stage Display" --windowed --noconfirm \
+  --add-data "templates/index.html:templates" --add-data "campuses.json:."
+open "dist/Multi-Campus Stage Display.app"
 ```
 
 ## Docker (local)
@@ -51,12 +52,12 @@ docker compose up -d
 The image is built automatically on every push to `main` and published to:
 
 ```
-ghcr.io/tristonyoder/stage-display-content:latest
+ghcr.io/tristonyoder/multi-campus-stage-display:latest
 ```
 
 ### 1. Make the package public (one-time)
 
-1. Go to [github.com/TristonYoder](https://github.com/TristonYoder) → **Packages** → `stage-display-content`
+1. Go to [github.com/TristonYoder](https://github.com/TristonYoder) → **Packages** → `multi-campus-stage-display`
 2. **Package settings** → Change visibility → **Public**
 
 Or leave it private and run `docker login ghcr.io` on each server before pulling.
@@ -67,7 +68,7 @@ Or leave it private and run `docker login ghcr.io` on each server before pulling
 mkdir -p /opt/stage-display && cd /opt/stage-display
 echo '{}' > data.json
 curl -o campuses.json \
-  https://raw.githubusercontent.com/TristonYoder/stage-display-content/main/campuses.json
+  https://raw.githubusercontent.com/TristonYoder/multi-campus-stage-display/main/campuses.json
 ```
 
 Create `docker-compose.yml`:
@@ -75,7 +76,7 @@ Create `docker-compose.yml`:
 ```yaml
 services:
   stage-display:
-    image: ghcr.io/tristonyoder/stage-display-content:latest
+    image: ghcr.io/tristonyoder/multi-campus-stage-display:latest
     ports:
       - "7474:7474"
     volumes:
@@ -138,7 +139,7 @@ The flake exports a NixOS module. Add it to your `nix-config` flake:
 
 **`flake.nix` inputs:**
 ```nix
-stage-display.url = "github:TristonYoder/stage-display-content";
+stage-display.url = "github:TristonYoder/multi-campus-stage-display";
 ```
 
 **Pass it through to your host** (same pattern as other modules in `nix-config`):

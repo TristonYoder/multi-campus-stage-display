@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Campus Stage Displays — macOS menu bar app.
+Multi-Campus Stage Display — macOS menu bar app.
 Bundles the Flask server and serves it from the system tray.
 """
 import os
@@ -16,7 +16,7 @@ PORT = 7474
 
 # ── Data directory ────────────────────────────────────────────────────────────
 # Use ~/Library/Application Support/ so data survives app updates.
-DATA_DIR = Path.home() / "Library" / "Application Support" / "Campus Stage Displays"
+DATA_DIR = Path.home() / "Library" / "Application Support" / "Multi-Campus Stage Display"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 os.environ["STAGE_DISPLAY_DATA_DIR"] = str(DATA_DIR)
 
@@ -36,12 +36,12 @@ from server import app as flask_app  # noqa: E402
 class StageDisplayApp(rumps.App):
     def __init__(self):
         super().__init__(
-            name="Campus Stage Displays",
+            name="Multi-Campus Stage Display",
             title="⬛",
-            quit_button=rumps.MenuItem("Quit Campus Stage Displays"),
+            quit_button=rumps.MenuItem("Quit Multi-Campus Stage Display"),
         )
         self.menu = [
-            rumps.MenuItem("Campus Stage Displays", callback=None),
+            rumps.MenuItem("Multi-Campus Stage Display", callback=None),
             None,
             rumps.MenuItem("Open in Browser", callback=self.open_browser),
             None,

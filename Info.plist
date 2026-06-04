@@ -4,9 +4,9 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>Campus Stage Displays</string>
+  <string>Multi-Campus Stage Display</string>
   <key>CFBundleDisplayName</key>
-  <string>Campus Stage Displays</string>
+  <string>Multi-Campus Stage Display</string>
   <key>CFBundleIdentifier</key>
   <string>studio.7andco.stage-display</string>
   <key>CFBundleVersion</key>

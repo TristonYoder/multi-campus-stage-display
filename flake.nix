@@ -1,5 +1,5 @@
 {
-  description = "Campus Stage Displays";
+  description = "Multi-Campus Stage Display";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
 
@@ -10,7 +10,7 @@
         cfg = config.services.stage-display;
       in {
         options.services.stage-display = {
-          enable = lib.mkEnableOption "Campus Stage Displays";
+          enable = lib.mkEnableOption "Multi-Campus Stage Display";
 
           port = lib.mkOption {
             type    = lib.types.port;
@@ -41,7 +41,7 @@
           };
 
           virtualisation.oci-containers.containers."stage-display" = {
-            image      = "ghcr.io/tristonyoder/stage-display-content:latest";
+            image      = "ghcr.io/tristonyoder/multi-campus-stage-display:latest";
             autoStart  = true;
             log-driver = "journald";
             ports      = [ "${toString cfg.port}:7474/tcp" ];

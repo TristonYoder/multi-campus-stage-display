@@ -70,7 +70,7 @@ jobs:
       - name: Build .app
         run: |
           pyinstaller app.py \
-            --name "Campus Stage Displays" \
+            --name "Multi-Campus Stage Display" \
             --windowed \
             --noconfirm \
             --add-data "templates/index.html:templates" \
@@ -85,21 +85,21 @@ jobs:
 
       - name: Patch Info.plist (menu bar only, no Dock icon)
         run: |
-          PLIST="dist/Campus Stage Displays.app/Contents/Info.plist"
+          PLIST="dist/Multi-Campus Stage Display.app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" || \
           /usr/libexec/PlistBuddy -c "Set :LSUIElement true"      "$PLIST"
 
       - name: Create .dmg
         run: |
           hdiutil create \
-            -volname "Campus Stage Displays" \
-            -srcfolder "dist/Campus Stage Displays.app" \
+            -volname "Multi-Campus Stage Display" \
+            -srcfolder "dist/Multi-Campus Stage Display.app" \
             -ov -format UDZO \
-            "dist/CampusStageDisplays.dmg"
+            "dist/MultiCampusStageDisplay.dmg"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: CampusStageDisplays-macOS
-          path: dist/CampusStageDisplays.dmg
+          name: MultiCampusStageDisplay-macOS
+          path: dist/MultiCampusStageDisplay.dmg
           retention-days: 30
