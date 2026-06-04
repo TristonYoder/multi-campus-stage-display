@@ -59,16 +59,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Install Python (framework build via Homebrew)
+        run: |
+          brew install python@3.12
+          echo "/opt/homebrew/opt/python@3.12/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: pip install -r requirements-mac.txt
+        run: pip3.12 install setuptools -r requirements-mac.txt
 
       - name: Build .app
-        run: python setup.py py2app
+        run: python3.12 setup.py py2app
 
       - name: Create .dmg
         run: |
