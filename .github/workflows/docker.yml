@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 env:
@@ -39,6 +41,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=
+            type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -54,6 +57,8 @@ jobs:
   # ── macOS .app + .dmg ────────────────────────────────────────────────────────
   build-mac-app:
     runs-on: macos-latest
+    permissions:
+      contents: write  # needed to create GitHub releases
 
     steps:
       - name: Checkout
@@ -90,6 +95,7 @@ jobs:
             --add-data "templates/index.html:templates" \
             --add-data "campuses.json:." \
             --add-data "icon.png:." \
+            --add-data "VERSION:." \
             --hidden-import flask \
             --hidden-import jinja2 \
             --hidden-import werkzeug \
@@ -123,3 +129,10 @@ jobs:
           name: MultiCampusStageDisplay-macOS
           path: dist/MultiCampusStageDisplay.dmg
           retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MultiCampusStageDisplay.dmg
+          generate_release_notes: true

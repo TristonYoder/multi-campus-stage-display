@@ -10,14 +10,24 @@ import threading
 import webbrowser
 from pathlib import Path
 
+import json
+import urllib.request
+
 import rumps
 
 PORT = 6767
+REPO = "TristonYoder/multi-campus-stage-display"
 
 # Resolve bundled resource path (works both in .app and plain Python)
 def _resource(name: str) -> str:
     base = getattr(sys, "_MEIPASS", Path(__file__).parent)
     return str(Path(base) / name)
+
+def _current_version() -> str:
+    try:
+        return Path(_resource("VERSION")).read_text().strip()
+    except Exception:
+        return "0.0.0"
 
 # ── Data directory ────────────────────────────────────────────────────────────
 # Use ~/Library/Application Support/ so data survives app updates.
@@ -64,6 +74,27 @@ class StageDisplayApp(rumps.App):
         ]
         set_notify_hook(_send_notification)
         self._start_server()
+        # Check for updates once at launch, then every 24 hours
+        rumps.Timer(self._check_for_update, 86400).start()
+        self._check_for_update(None)
+
+    def _check_for_update(self, _):
+        try:
+            url = f"https://api.github.com/repos/{REPO}/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "MultiCampusStageDisplay"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                data = json.loads(r.read())
+            latest = data.get("tag_name", "").lstrip("v")
+            current = _current_version()
+            if latest and latest != current:
+                rumps.notification(
+                    title="Update Available",
+                    subtitle=f"Multi-Campus Stage Display {latest}",
+                    message="Download the latest DMG from GitHub releases.",
+                    sound=False,
+                )
+        except Exception:
+            pass
 
     def _start_server(self):
         t = threading.Thread(
