@@ -89,6 +89,11 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" || \
           /usr/libexec/PlistBuddy -c "Set :LSUIElement true"      "$PLIST"
 
+      - name: Ad-hoc sign .app (suppresses "damaged" Gatekeeper warning)
+        run: |
+          codesign --force --deep --sign - \
+            "dist/Multi-Campus Stage Display.app"
+
       - name: Create .dmg
         run: |
           hdiutil create \
