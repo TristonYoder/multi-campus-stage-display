@@ -168,7 +168,7 @@ def api_post(campus_id):
             and body[slug_to_key(slot["slug"])] != old_campus.get(slug_to_key(slot["slug"]), "")
         ]
         if changed:
-            _notify_hook(", ".join(changed), campus_name, ts)
+            _notify_hook(changed, campus_name, ts)
 
     return jsonify({"ok": True})
 

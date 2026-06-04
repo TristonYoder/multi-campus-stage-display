@@ -47,11 +47,18 @@ if not (DATA_DIR / "data.json").exists():
 from server import app as flask_app, set_notify_hook  # noqa: E402
 
 
-def _send_notification(slot_label: str, campus_name: str, ts: str):
+def _format_slot_list(slots: list[str]) -> str:
+    """['Host-Mid', 'Host-Post'] → 'Host-Mid and Host-Post'"""
+    if len(slots) == 1:
+        return slots[0]
+    return ", ".join(slots[:-1]) + f" and {slots[-1]}"
+
+
+def _send_notification(changed: list[str], campus_name: str, ts: str):
     """Called from a Flask worker thread whenever content is saved."""
     rumps.notification(
-        title=f"{slot_label} updated",
-        subtitle=campus_name,
+        title=f"{campus_name} confidence update",
+        subtitle=f"New {_format_slot_list(changed)} Content",
         message=ts,
         sound=False,
     )
