@@ -437,7 +437,7 @@
   }
   .col-headers { display: grid; gap: 0.5rem; padding: 0 0 0.25rem; }
   .col-headers.slot-headers  { grid-template-columns: 1fr auto auto; }
-  .col-headers.campus-headers { grid-template-columns: 1fr 1fr auto; }
+  .col-headers.campus-headers { grid-template-columns: 1fr 1fr 1.2fr 5rem auto; }
 
   .admin-footer {
     display: flex;
@@ -596,6 +596,8 @@
         <div class="col-headers campus-headers">
           <span class="col-header">Name</span>
           <span class="col-header">IP Range (CIDR)</span>
+          <span class="col-header">ProPresenter IP</span>
+          <span class="col-header">Port</span>
           <span></span>
         </div>
         <div class="edit-list" id="campusList">
