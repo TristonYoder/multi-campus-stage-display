@@ -486,15 +486,11 @@
     <div class="stage-msg-panel" id="stagepanel-{{ campus.id }}" data-configured="{{ 'true' if campus.propresenter_host else 'false' }}">
       <h3>Stage Message</h3>
       {% if campus.propresenter_host %}
-      <div class="stage-msg-current">
-        <span class="stage-msg-label">Current:</span>
-        <span class="stage-msg-value" id="stagemsg-current-{{ campus.id }}">(loading…)</span>
-        <button class="btn-secondary stage-msg-refresh" onclick="stageMessageGet('{{ campus.id }}')">↻</button>
-      </div>
       <div class="stage-msg-row">
         <input type="text" class="stage-msg-input" id="stagemsg-input-{{ campus.id }}"
                placeholder="Type a stage message…"
                onkeydown="if(event.key==='Enter') stageMessageSend('{{ campus.id }}')">
+        <button class="btn-secondary stage-msg-refresh" onclick="stageMessageGet('{{ campus.id }}')">↻</button>
         <button class="btn-save" onclick="stageMessageSend('{{ campus.id }}')">Send</button>
         <button class="btn-secondary" onclick="stageMessageClear('{{ campus.id }}')">Clear</button>
       </div>
@@ -690,15 +686,16 @@
 
   // ── Stage message ─────────────────────────────────────────────────────────
   async function stageMessageGet(campusId) {
-    const el = document.getElementById(`stagemsg-current-${campusId}`);
-    el.textContent = '…';
+    const input = document.getElementById(`stagemsg-input-${campusId}`);
+    if (!input) return;
+    input.placeholder = '…';
     try {
       const r = await fetch(`/api/campus/${campusId}/stage-message`);
       const raw = await r.text();
       const text = raw.trim().replace(/^"|"$/g, '');
-      el.textContent = text || '(none)';
-      el.style.fontStyle = text ? 'normal' : 'italic';
-    } catch { el.textContent = '(error)'; }
+      input.value = text;
+      input.placeholder = 'Type a stage message…';
+    } catch { input.placeholder = '(error)'; }
   }
 
   async function stageMessageSend(campusId) {
