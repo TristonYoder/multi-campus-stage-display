@@ -490,7 +490,6 @@
         <input type="text" class="stage-msg-input" id="stagemsg-input-{{ campus.id }}"
                placeholder="Type a stage message…"
                onkeydown="if(event.key==='Enter') stageMessageSend('{{ campus.id }}')">
-        <button class="btn-secondary stage-msg-refresh" onclick="stageMessageGet('{{ campus.id }}')">↻</button>
         <button class="btn-save" onclick="stageMessageSend('{{ campus.id }}')">Send</button>
         <button class="btn-secondary" onclick="stageMessageClear('{{ campus.id }}')">Clear</button>
       </div>
@@ -630,7 +629,7 @@
     if (id !== '__rss' && id !== '__config' && id !== '__landing') {
       loadContent(id);
       const panel = document.getElementById(`stagepanel-${id}`);
-      if (panel && panel.dataset.configured === 'true') stageMessageGet(id);
+      if (panel && panel.dataset.configured === 'true') stageMessageStartPolling(id);
     }
   }
 
@@ -685,17 +684,38 @@
   }
 
   // ── Stage message ─────────────────────────────────────────────────────────
+  // Track which campus inputs are currently being typed in
+  const _stageMsgTyping = {};
+  const _stageMsgPollers = {};
+
   async function stageMessageGet(campusId) {
+    if (_stageMsgTyping[campusId]) return;
     const input = document.getElementById(`stagemsg-input-${campusId}`);
     if (!input) return;
-    input.placeholder = '…';
     try {
       const r = await fetch(`/api/campus/${campusId}/stage-message`);
       const raw = await r.text();
       const text = raw.trim().replace(/^"|"$/g, '');
-      input.value = text;
-      input.placeholder = 'Type a stage message…';
-    } catch { input.placeholder = '(error)'; }
+      if (!_stageMsgTyping[campusId]) input.value = text;
+    } catch {}
+  }
+
+  function stageMessageStartPolling(campusId) {
+    const input = document.getElementById(`stagemsg-input-${campusId}`);
+    if (!input) return;
+    let typingTimer;
+    if (!input.dataset.pollerAttached) {
+      input.dataset.pollerAttached = '1';
+      input.addEventListener('input', () => {
+      _stageMsgTyping[campusId] = true;
+      clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => { _stageMsgTyping[campusId] = false; }, 2000);
+      });
+    }
+    // Initial fetch then poll every 2s (clear any existing poller first)
+    if (_stageMsgPollers[campusId]) clearInterval(_stageMsgPollers[campusId]);
+    stageMessageGet(campusId);
+    _stageMsgPollers[campusId] = setInterval(() => stageMessageGet(campusId), 2000);
   }
 
   async function stageMessageSend(campusId) {
