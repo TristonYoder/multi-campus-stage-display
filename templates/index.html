@@ -353,7 +353,7 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--accent);
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border);
   }
@@ -433,7 +433,7 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--accent);
   }
   .col-headers { display: grid; gap: 0.5rem; padding: 0 0 0.25rem; }
   .col-headers.slot-headers  { grid-template-columns: 1fr auto auto; }
@@ -610,8 +610,8 @@
                    value="{{ campus.propresenter_host or '' }}"
                    placeholder="ProPresenter IP (e.g. 10.10.1.50)">
             <input type="text" class="pp-port"
-                   value="{{ campus.propresenter_port or 61188 }}"
-                   placeholder="Port (default 61188)">
+                   value="{{ campus.propresenter_port or 53072 }}"
+                   placeholder="Port (default 53072)">
             <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
           </div>
           {% endfor %}
@@ -851,7 +851,7 @@
       <input type="text" class="campus-name" placeholder="Campus name" oninput="updateCampusSlug(this)">
       <input type="text" class="campus-networks network-input" placeholder="IP ranges: 10.10.1.0/24, …">
       <input type="text" class="pp-host" placeholder="ProPresenter IP (e.g. 10.10.1.50)">
-      <input type="text" class="pp-port" placeholder="Port (default 61188)" value="61188">
+      <input type="text" class="pp-port" placeholder="Port (default 53072)" value="53072">
       <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
     document.getElementById('campusList').appendChild(row);
     row.querySelector('input').focus();
@@ -868,7 +868,7 @@
       const nets = row.querySelector('.campus-networks').value
         .split(',').map(s => s.trim()).filter(Boolean);
       const propresenter_host = row.querySelector('.pp-host')?.value.trim() || '';
-      const propresenter_port = parseInt(row.querySelector('.pp-port')?.value) || 61188;
+      const propresenter_port = parseInt(row.querySelector('.pp-port')?.value) || 53072;
       return { id: toSlug(name), name, networks: nets, propresenter_host, propresenter_port };
     }).filter(c => c.name);
 

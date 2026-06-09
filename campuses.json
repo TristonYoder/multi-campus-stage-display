@@ -21,7 +21,7 @@
         "0.0.0.0/0"
       ],
       "propresenter_host": "10.12.253.12",
-      "propresenter_port": 61188
+      "propresenter_port": 53072
     }
   ]
 }

@@ -205,7 +205,7 @@ def api_config_post():
         cid  = c.get("id",   "").strip()
         nets = [n.strip() for n in c.get("networks", []) if n.strip()]
         pp_host = c.get("propresenter_host", "").strip()
-        pp_port = int(c.get("propresenter_port") or 61188)
+        pp_port = int(c.get("propresenter_port") or 53072)
         if name and cid:
             entry = {"id": cid, "name": name, "networks": nets,
                      "propresenter_host": pp_host, "propresenter_port": pp_port}
@@ -253,7 +253,7 @@ def _pp_base(campus_id):
     if not campus:
         return None, None
     host = campus.get("propresenter_host", "").strip()
-    port = int(campus.get("propresenter_port") or 61188)
+    port = int(campus.get("propresenter_port") or 53072)
     return host, port
 
 def _pp_request(method, url, body=None):
