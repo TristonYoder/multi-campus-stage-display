@@ -137,6 +137,13 @@
     font-size: .95rem;
   }
   .stage-msg-input:focus { outline: none; border-color: var(--accent); }
+  .stage-msg-unconfigured {
+    margin: 0;
+    color: #666;
+    font-size: .875rem;
+  }
+  .stage-msg-unconfigured a { color: var(--accent); text-decoration: none; }
+  .stage-msg-unconfigured a:hover { text-decoration: underline; }
 
   .landing-panel.active {
     display: flex;
@@ -476,9 +483,9 @@
       <span class="status-msg" id="status-{{ campus.id }}"></span>
     </div>
 
-    {% if campus.propresenter_host %}
-    <div class="stage-msg-panel" id="stagepanel-{{ campus.id }}">
+    <div class="stage-msg-panel" id="stagepanel-{{ campus.id }}" data-configured="{{ 'true' if campus.propresenter_host else 'false' }}">
       <h3>Stage Message</h3>
+      {% if campus.propresenter_host %}
       <div class="stage-msg-current">
         <span class="stage-msg-label">Current:</span>
         <span class="stage-msg-value" id="stagemsg-current-{{ campus.id }}">(loading…)</span>
@@ -492,8 +499,10 @@
         <button class="btn-secondary" onclick="stageMessageClear('{{ campus.id }}')">Clear</button>
       </div>
       <span class="status-msg" id="stagemsg-status-{{ campus.id }}"></span>
+      {% else %}
+      <p class="stage-msg-unconfigured">ProPresenter not configured for this campus. Add the IP and port in <a href="#" onclick="switchTab('__config');return false;">Settings</a>.</p>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
   {% endfor %}
 
@@ -624,7 +633,8 @@
       p.classList.toggle('active', p.id === 'panel-' + id));
     if (id !== '__rss' && id !== '__config' && id !== '__landing') {
       loadContent(id);
-      if (document.getElementById(`stagepanel-${id}`)) stageMessageGet(id);
+      const panel = document.getElementById(`stagepanel-${id}`);
+      if (panel && panel.dataset.configured === 'true') stageMessageGet(id);
     }
   }
 
