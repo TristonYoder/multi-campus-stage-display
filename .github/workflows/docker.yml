@@ -144,6 +144,8 @@ jobs:
             "dist/Multi-Campus Stage Display.app"
 
       - name: Create .dmg
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           mkdir -p dist/dmg
           cp -r "dist/Multi-Campus Stage Display.app" dist/dmg/
@@ -152,13 +154,15 @@ jobs:
             -volname "Multi-Campus Stage Display" \
             -srcfolder dist/dmg \
             -ov -format UDZO \
-            "dist/MultiCampusStageDisplay.dmg"
+            "dist/MultiCampusStageDisplay-${VERSION}.dmg"
 
       - name: Upload .dmg artifact
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: MultiCampusStageDisplay-macOS
-          path: dist/MultiCampusStageDisplay.dmg
+          name: MultiCampusStageDisplay-${{ needs.version.outputs.version }}-macOS
+          path: dist/MultiCampusStageDisplay-${{ needs.version.outputs.version }}.dmg
           retention-days: 30
 
       - name: Tag and create GitHub Release
@@ -171,6 +175,6 @@ jobs:
           git tag "$VERSION"
           git push origin "$VERSION"
           gh release create "$VERSION" \
-            dist/MultiCampusStageDisplay.dmg \
+            "dist/MultiCampusStageDisplay-${VERSION}.dmg" \
             --title "$VERSION" \
             --generate-notes
