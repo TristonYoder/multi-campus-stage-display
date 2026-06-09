@@ -4,6 +4,8 @@ import json
 import os
 import re
 import threading
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -202,8 +204,12 @@ def api_config_post():
         name = c.get("name", "").strip()
         cid  = c.get("id",   "").strip()
         nets = [n.strip() for n in c.get("networks", []) if n.strip()]
+        pp_host = c.get("propresenter_host", "").strip()
+        pp_port = int(c.get("propresenter_port") or 1025)
         if name and cid:
-            campuses.append({"id": cid, "name": name, "networks": nets})
+            entry = {"id": cid, "name": name, "networks": nets,
+                     "propresenter_host": pp_host, "propresenter_port": pp_port}
+            campuses.append(entry)
 
     with _lock:
         save_config({"slots": slots, "campuses": campuses})
@@ -237,6 +243,56 @@ def rss_dynamic(slot_slug):
 @app.route("/rss/<campus_id>/<slot_slug>")
 def rss_static(campus_id, slot_slug):
     return _rss_response(campus_id, slot_slug)
+
+
+# ── ProPresenter stage message proxy ─────────────────────────────────────────
+
+def _pp_base(campus_id):
+    """Return (host, port) for the campus, or raise 404 if not configured."""
+    campus = next((c for c in load_campuses() if c["id"] == campus_id), None)
+    if not campus:
+        return None, None
+    host = campus.get("propresenter_host", "").strip()
+    port = int(campus.get("propresenter_port") or 1025)
+    return host, port
+
+def _pp_request(method, url, body=None):
+    req = urllib.request.Request(url, method=method)
+    if body is not None:
+        req.data = body.encode() if isinstance(body, str) else body
+        req.add_header("Content-Type", "text/plain")
+    try:
+        with urllib.request.urlopen(req, timeout=3) as r:
+            return r.read().decode(), r.status
+    except urllib.error.HTTPError as e:
+        return e.read().decode(), e.code
+    except Exception as e:
+        return str(e), 502
+
+@app.route("/api/campus/<campus_id>/stage-message", methods=["GET"])
+def pp_stage_message_get(campus_id):
+    host, port = _pp_base(campus_id)
+    if not host:
+        return jsonify({"error": "ProPresenter not configured for this campus"}), 404
+    body, status = _pp_request("GET", f"http://{host}:{port}/v1/stage/message")
+    return body, status, {"Content-Type": "text/plain"}
+
+@app.route("/api/campus/<campus_id>/stage-message", methods=["PUT"])
+def pp_stage_message_set(campus_id):
+    host, port = _pp_base(campus_id)
+    if not host:
+        return jsonify({"error": "ProPresenter not configured for this campus"}), 404
+    message = request.get_data(as_text=True)
+    body, status = _pp_request("PUT", f"http://{host}:{port}/v1/stage/message", body=message)
+    return body, status, {"Content-Type": "text/plain"}
+
+@app.route("/api/campus/<campus_id>/stage-message", methods=["DELETE"])
+def pp_stage_message_clear(campus_id):
+    host, port = _pp_base(campus_id)
+    if not host:
+        return jsonify({"error": "ProPresenter not configured for this campus"}), 404
+    body, status = _pp_request("DELETE", f"http://{host}:{port}/v1/stage/message")
+    return body, status, {"Content-Type": "text/plain"}
 
 
 if __name__ == "__main__":

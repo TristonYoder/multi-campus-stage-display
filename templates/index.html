@@ -93,6 +93,51 @@
   }
   .panel { display: none; }
   .panel.active { display: block; }
+  /* ── Stage message panel ── */
+  .stage-msg-panel {
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background: #222;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+  }
+  .stage-msg-panel h3 {
+    margin: 0 0 1rem;
+    font-size: .75rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .stage-msg-current {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .9rem;
+    font-size: .9rem;
+  }
+  .stage-msg-label { color: #666; }
+  .stage-msg-value { color: #ccc; flex: 1; font-style: italic; }
+  .stage-msg-refresh {
+    padding: 2px 8px;
+    font-size: .9rem;
+  }
+  .stage-msg-row {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+  }
+  .stage-msg-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #eee;
+    padding: .55rem .75rem;
+    font-family: inherit;
+    font-size: .95rem;
+  }
+  .stage-msg-input:focus { outline: none; border-color: var(--accent); }
+
   .landing-panel.active {
     display: flex;
     flex-direction: column;
@@ -283,7 +328,8 @@
     align-items: center;
   }
   .edit-row.slot-row  { grid-template-columns: 1fr auto auto; }
-  .edit-row.campus-row { grid-template-columns: 1fr 1fr auto; }
+  .edit-row.campus-row { grid-template-columns: 1fr 1fr 1.2fr 5rem auto; }
+  .edit-row.campus-row .pp-port { width: 100%; }
 
   .edit-row input[type="text"] {
     background: var(--bg-dark);
@@ -369,14 +415,16 @@
     .rss-row-label { display: none; }
     .edit-row.campus-row {
       grid-template-columns: 1fr auto;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto auto auto;
     }
-    .edit-row.campus-row .network-input {
+    .edit-row.campus-row .network-input,
+    .edit-row.campus-row .pp-host,
+    .edit-row.campus-row .pp-port {
       grid-column: 1;
     }
     .edit-row.campus-row .btn-remove {
       grid-column: 2;
-      grid-row: 1 / 3;
+      grid-row: 1 / 4;
       align-self: center;
     }
   }
@@ -427,6 +475,25 @@
       <button class="btn-secondary" onclick="clearCampus('{{ campus.id }}')">Clear</button>
       <span class="status-msg" id="status-{{ campus.id }}"></span>
     </div>
+
+    {% if campus.propresenter_host %}
+    <div class="stage-msg-panel" id="stagepanel-{{ campus.id }}">
+      <h3>Stage Message</h3>
+      <div class="stage-msg-current">
+        <span class="stage-msg-label">Current:</span>
+        <span class="stage-msg-value" id="stagemsg-current-{{ campus.id }}">(loading…)</span>
+        <button class="btn-secondary stage-msg-refresh" onclick="stageMessageGet('{{ campus.id }}')">↻</button>
+      </div>
+      <div class="stage-msg-row">
+        <input type="text" class="stage-msg-input" id="stagemsg-input-{{ campus.id }}"
+               placeholder="Type a stage message…"
+               onkeydown="if(event.key==='Enter') stageMessageSend('{{ campus.id }}')">
+        <button class="btn-save" onclick="stageMessageSend('{{ campus.id }}')">Send</button>
+        <button class="btn-secondary" onclick="stageMessageClear('{{ campus.id }}')">Clear</button>
+      </div>
+      <span class="status-msg" id="stagemsg-status-{{ campus.id }}"></span>
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 
@@ -503,7 +570,13 @@
                    placeholder="Campus name" oninput="updateCampusSlug(this)">
             <input type="text" class="campus-networks network-input"
                    value="{{ campus.networks | join(', ') }}"
-                   placeholder="10.10.1.0/24, …">
+                   placeholder="IP ranges: 10.10.1.0/24, …">
+            <input type="text" class="pp-host"
+                   value="{{ campus.propresenter_host or '' }}"
+                   placeholder="ProPresenter IP (e.g. 10.10.1.50)">
+            <input type="number" class="pp-port"
+                   value="{{ campus.propresenter_port or 1025 }}"
+                   placeholder="Port" min="1" max="65535">
             <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
           </div>
           {% endfor %}
@@ -549,7 +622,10 @@
       t.classList.toggle('active', t.dataset.campus === id));
     document.querySelectorAll('.panel').forEach(p =>
       p.classList.toggle('active', p.id === 'panel-' + id));
-    if (id !== '__rss' && id !== '__config') loadContent(id);
+    if (id !== '__rss' && id !== '__config' && id !== '__landing') {
+      loadContent(id);
+      if (document.getElementById(`stagepanel-${id}`)) stageMessageGet(id);
+    }
   }
 
   // ── Campus content ────────────────────────────────────────────────────────
@@ -600,6 +676,46 @@
       const el = document.getElementById(`${campusId}-${slug}`);
       if (el) el.value = '';
     });
+  }
+
+  // ── Stage message ─────────────────────────────────────────────────────────
+  async function stageMessageGet(campusId) {
+    const el = document.getElementById(`stagemsg-current-${campusId}`);
+    el.textContent = '…';
+    try {
+      const r = await fetch(`/api/campus/${campusId}/stage-message`);
+      const text = await r.text();
+      el.textContent = text.trim() || '(none)';
+      el.style.fontStyle = text.trim() ? 'normal' : 'italic';
+    } catch { el.textContent = '(error)'; }
+  }
+
+  async function stageMessageSend(campusId) {
+    const input = document.getElementById(`stagemsg-input-${campusId}`);
+    const msg = input.value.trim();
+    if (!msg) return;
+    const r = await fetch(`/api/campus/${campusId}/stage-message`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'text/plain'},
+      body: msg,
+    });
+    if (r.ok) {
+      flash(`stagemsg-status-${campusId}`, 'Sent');
+      stageMessageGet(campusId);
+      input.value = '';
+    } else {
+      flash(`stagemsg-status-${campusId}`, 'Error sending', true);
+    }
+  }
+
+  async function stageMessageClear(campusId) {
+    const r = await fetch(`/api/campus/${campusId}/stage-message`, { method: 'DELETE' });
+    if (r.ok) {
+      flash(`stagemsg-status-${campusId}`, 'Cleared');
+      stageMessageGet(campusId);
+    } else {
+      flash(`stagemsg-status-${campusId}`, 'Error clearing', true);
+    }
   }
 
   // ── RSS copy ──────────────────────────────────────────────────────────────
@@ -666,7 +782,9 @@
     row.dataset.id = '';
     row.innerHTML = `
       <input type="text" class="campus-name" placeholder="Campus name" oninput="updateCampusSlug(this)">
-      <input type="text" class="campus-networks network-input" placeholder="10.10.1.0/24">
+      <input type="text" class="campus-networks network-input" placeholder="IP ranges: 10.10.1.0/24, …">
+      <input type="text" class="pp-host" placeholder="ProPresenter IP (e.g. 10.10.1.50)">
+      <input type="number" class="pp-port" placeholder="Port" value="1025" min="1" max="65535">
       <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
     document.getElementById('campusList').appendChild(row);
     row.querySelector('input').focus();
@@ -682,7 +800,9 @@
       const name = row.querySelector('.campus-name').value.trim();
       const nets = row.querySelector('.campus-networks').value
         .split(',').map(s => s.trim()).filter(Boolean);
-      return { id: toSlug(name), name, networks: nets };
+      const propresenter_host = row.querySelector('.pp-host')?.value.trim() || '';
+      const propresenter_port = parseInt(row.querySelector('.pp-port')?.value) || 1025;
+      return { id: toSlug(name), name, networks: nets, propresenter_host, propresenter_port };
     }).filter(c => c.name);
 
     const r = await fetch('/api/config', {
