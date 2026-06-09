@@ -715,8 +715,6 @@
   }
 
   // ── Stage message ─────────────────────────────────────────────────────────
-  // Track which campus inputs are currently being typed in
-  const _stageMsgTyping = {};
   const _stageMsgPollers = {};
 
   function _stageMsgSetDot(campusId, state) {
@@ -726,36 +724,35 @@
     dot.textContent = state === 'live' ? 'Live' : 'Editing';
   }
 
+  function _stageMsgStopPolling(campusId) {
+    if (_stageMsgPollers[campusId]) {
+      clearInterval(_stageMsgPollers[campusId]);
+      delete _stageMsgPollers[campusId];
+    }
+  }
+
   async function stageMessageGet(campusId) {
-    if (_stageMsgTyping[campusId]) return;
     const input = document.getElementById(`stagemsg-input-${campusId}`);
     if (!input) return;
     try {
       const r = await fetch(`/api/campus/${campusId}/stage-message`);
       const raw = await r.text();
-      const text = raw.trim().replace(/^"|"$/g, '');
-      if (!_stageMsgTyping[campusId]) input.value = text;
+      input.value = raw.trim().replace(/^"|"$/g, '');
     } catch {}
   }
 
   function stageMessageStartPolling(campusId) {
     const input = document.getElementById(`stagemsg-input-${campusId}`);
     if (!input) return;
-    let typingTimer;
+    // Attach typing listener once — stops polling permanently on first edit
     if (!input.dataset.pollerAttached) {
       input.dataset.pollerAttached = '1';
       input.addEventListener('input', () => {
-      _stageMsgTyping[campusId] = true;
-      clearTimeout(typingTimer);
-          typingTimer = setTimeout(() => {
-          _stageMsgTyping[campusId] = false;
-          _stageMsgSetDot(campusId, 'live');
-        }, 2000);
+        _stageMsgStopPolling(campusId);
         _stageMsgSetDot(campusId, 'editing');
       });
     }
-    // Initial fetch then poll every 2s (clear any existing poller first)
-    if (_stageMsgPollers[campusId]) clearInterval(_stageMsgPollers[campusId]);
+    _stageMsgStopPolling(campusId);
     _stageMsgSetDot(campusId, 'live');
     stageMessageGet(campusId);
     _stageMsgPollers[campusId] = setInterval(() => stageMessageGet(campusId), 2000);
@@ -772,8 +769,7 @@
     });
     if (r.ok) {
       flash(`stagemsg-status-${campusId}`, 'Sent');
-      stageMessageGet(campusId);
-      input.value = '';
+      stageMessageStartPolling(campusId);
     } else {
       flash(`stagemsg-status-${campusId}`, 'Error sending', true);
     }
@@ -783,7 +779,7 @@
     const r = await fetch(`/api/campus/${campusId}/stage-message`, { method: 'DELETE' });
     if (r.ok) {
       flash(`stagemsg-status-${campusId}`, 'Cleared');
-      stageMessageGet(campusId);
+      stageMessageStartPolling(campusId);
     } else {
       flash(`stagemsg-status-${campusId}`, 'Error clearing', true);
     }
