@@ -270,6 +270,7 @@ def _pp_request(method, url, body=None):
         return str(e), 502
 
 
+
 @app.route("/api/campus/<campus_id>/stage-message", methods=["GET"])
 def pp_stage_message_get(campus_id):
     host, port = _pp_base(campus_id)
@@ -284,7 +285,18 @@ def pp_stage_message_set(campus_id):
     if not host:
         return jsonify({"error": "ProPresenter not configured for this campus"}), 404
     message = request.get_data(as_text=True)
-    body, status = _pp_request("PUT", f"http://{host}:{port}/v1/stage/message", body=message)
+    # ProPresenter expects application/json with a JSON-encoded string body
+    encoded = json.dumps(message)
+    req = urllib.request.Request(f"http://{host}:{port}/v1/stage/message", method="PUT")
+    req.data = encoded.encode()
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=3) as r:
+            body, status = r.read().decode(), r.status
+    except urllib.error.HTTPError as e:
+        body, status = e.read().decode(), e.code
+    except Exception as e:
+        body, status = str(e), 502
     return body, status, {"Content-Type": "text/plain"}
 
 @app.route("/api/campus/<campus_id>/stage-message", methods=["DELETE"])
