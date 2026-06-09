@@ -107,7 +107,38 @@
     letter-spacing: .08em;
     text-transform: uppercase;
     color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
   }
+  .stage-msg-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    padding: .15rem .4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .stage-msg-status::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .stage-msg-status.live {
+    color: #ff4444;
+    background: rgba(255,68,68,.12);
+  }
+  .stage-msg-status.live::before { background: #ff4444; }
+  .stage-msg-status.editing {
+    color: var(--accent);
+    background: rgba(235,231,23,.12);
+  }
+  .stage-msg-status.editing::before { background: var(--accent); }
   .stage-msg-current {
     display: flex;
     align-items: center;
@@ -484,7 +515,7 @@
     </div>
 
     <div class="stage-msg-panel" id="stagepanel-{{ campus.id }}" data-configured="{{ 'true' if campus.propresenter_host else 'false' }}">
-      <h3>Stage Message</h3>
+      <h3>Stage Message <span class="stage-msg-status" id="stagemsg-status-dot-{{ campus.id }}"></span></h3>
       {% if campus.propresenter_host %}
       <div class="stage-msg-row">
         <input type="text" class="stage-msg-input" id="stagemsg-input-{{ campus.id }}"
@@ -688,6 +719,13 @@
   const _stageMsgTyping = {};
   const _stageMsgPollers = {};
 
+  function _stageMsgSetDot(campusId, state) {
+    const dot = document.getElementById(`stagemsg-status-dot-${campusId}`);
+    if (!dot) return;
+    dot.className = `stage-msg-status ${state}`;
+    dot.textContent = state === 'live' ? 'Live' : 'Editing';
+  }
+
   async function stageMessageGet(campusId) {
     if (_stageMsgTyping[campusId]) return;
     const input = document.getElementById(`stagemsg-input-${campusId}`);
@@ -709,11 +747,16 @@
       input.addEventListener('input', () => {
       _stageMsgTyping[campusId] = true;
       clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => { _stageMsgTyping[campusId] = false; }, 2000);
+          typingTimer = setTimeout(() => {
+          _stageMsgTyping[campusId] = false;
+          _stageMsgSetDot(campusId, 'live');
+        }, 2000);
+        _stageMsgSetDot(campusId, 'editing');
       });
     }
     // Initial fetch then poll every 2s (clear any existing poller first)
     if (_stageMsgPollers[campusId]) clearInterval(_stageMsgPollers[campusId]);
+    _stageMsgSetDot(campusId, 'live');
     stageMessageGet(campusId);
     _stageMsgPollers[campusId] = setInterval(() => stageMessageGet(campusId), 2000);
   }
