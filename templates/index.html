@@ -694,9 +694,10 @@
     el.textContent = '…';
     try {
       const r = await fetch(`/api/campus/${campusId}/stage-message`);
-      const text = await r.text();
-      el.textContent = text.trim() || '(none)';
-      el.style.fontStyle = text.trim() ? 'normal' : 'italic';
+      const raw = await r.text();
+      const text = raw.trim().replace(/^"|"$/g, '');
+      el.textContent = text || '(none)';
+      el.style.fontStyle = text ? 'normal' : 'italic';
     } catch { el.textContent = '(error)'; }
   }
 
