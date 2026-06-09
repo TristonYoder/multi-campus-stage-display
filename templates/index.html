@@ -574,9 +574,9 @@
             <input type="text" class="pp-host"
                    value="{{ campus.propresenter_host or '' }}"
                    placeholder="ProPresenter IP (e.g. 10.10.1.50)">
-            <input type="number" class="pp-port"
-                   value="{{ campus.propresenter_port or 1025 }}"
-                   placeholder="Port" min="1" max="65535">
+            <input type="text" class="pp-port"
+                   value="{{ campus.propresenter_port or 61188 }}"
+                   placeholder="Port (default 61188)">
             <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
           </div>
           {% endfor %}
@@ -784,7 +784,7 @@
       <input type="text" class="campus-name" placeholder="Campus name" oninput="updateCampusSlug(this)">
       <input type="text" class="campus-networks network-input" placeholder="IP ranges: 10.10.1.0/24, …">
       <input type="text" class="pp-host" placeholder="ProPresenter IP (e.g. 10.10.1.50)">
-      <input type="number" class="pp-port" placeholder="Port" value="1025" min="1" max="65535">
+      <input type="text" class="pp-port" placeholder="Port (default 61188)" value="61188">
       <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
     document.getElementById('campusList').appendChild(row);
     row.querySelector('input').focus();
@@ -801,7 +801,7 @@
       const nets = row.querySelector('.campus-networks').value
         .split(',').map(s => s.trim()).filter(Boolean);
       const propresenter_host = row.querySelector('.pp-host')?.value.trim() || '';
-      const propresenter_port = parseInt(row.querySelector('.pp-port')?.value) || 1025;
+      const propresenter_port = parseInt(row.querySelector('.pp-port')?.value) || 61188;
       return { id: toSlug(name), name, networks: nets, propresenter_host, propresenter_port };
     }).filter(c => c.name);
 
