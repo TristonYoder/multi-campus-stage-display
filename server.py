@@ -84,7 +84,11 @@ def make_rss(campus_id, slot_slug, base_url):
     key = slug_to_key(slot_slug)
     with _lock:
         data = load_data()
-    content = data.get(campus_id, {}).get(key, "")
+    scheduled = active_scheduled_text(campus_id, key, data)
+    if scheduled is not None:
+        content = scheduled
+    else:
+        content = data.get(campus_id, {}).get(key, "")
     slots = load_slots()
     label = next((s["label"] for s in slots if s["slug"] == slot_slug), slot_slug)
     campus_name = next(
@@ -137,19 +141,97 @@ def campus_route(slug):
     return "Not found", 404
 
 
+# ── Schedule helpers ──────────────────────────────────────────────────────────
+
+def active_scheduled_text(campus_id, slot_key, data):
+    """Return the currently active scheduled text for a slot, or None if no entry has fired."""
+    entries = data.get("schedules", {}).get(campus_id, {}).get(slot_key, [])
+    if not entries:
+        return None
+    now = datetime.now().strftime("%H:%M")
+    active = None
+    for entry in sorted(entries, key=lambda e: e.get("time", "")):
+        if entry.get("time", "") <= now:
+            active = entry.get("text", "")
+    return active
+
+
+def _valid_campus(campus_id):
+    return campus_id in {c["id"] for c in load_campuses()}
+
+
 # ── Content API ───────────────────────────────────────────────────────────────
+
+@app.route("/api/slots")
+def api_slots():
+    return jsonify(load_slots())
 
 @app.route("/api/campuses")
 def api_campuses():
     return jsonify(load_campuses())
+
+@app.route("/api/campuses/<campus_id>")
+def api_campus_get(campus_id):
+    campus = next((c for c in load_campuses() if c["id"] == campus_id), None)
+    if not campus:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(campus)
 
 @app.route("/api/content/<campus_id>", methods=["GET"])
 def api_get(campus_id):
     with _lock:
         data = load_data()
     slots = load_slots()
-    empty = {slug_to_key(s["slug"]): "" for s in slots}
-    return jsonify({**empty, **data.get(campus_id, {})})
+    result = {}
+    for s in slots:
+        key = slug_to_key(s["slug"])
+        scheduled = active_scheduled_text(campus_id, key, data)
+        if scheduled is not None:
+            result[key] = scheduled
+        else:
+            result[key] = data.get(campus_id, {}).get(key, "")
+    return jsonify(result)
+
+@app.route("/api/content/<campus_id>/<slot_slug>", methods=["GET"])
+def api_slot_get(campus_id, slot_slug):
+    if not _valid_campus(campus_id) or not _valid_slug(slot_slug):
+        return jsonify({"error": "Not found"}), 404
+    key = slug_to_key(slot_slug)
+    with _lock:
+        data = load_data()
+    scheduled = active_scheduled_text(campus_id, key, data)
+    value = scheduled if scheduled is not None else data.get(campus_id, {}).get(key, "")
+    return jsonify({"value": value})
+
+@app.route("/api/content/<campus_id>/<slot_slug>", methods=["PUT"])
+def api_slot_put(campus_id, slot_slug):
+    if not _valid_campus(campus_id) or not _valid_slug(slot_slug):
+        return jsonify({"error": "Not found"}), 404
+    key = slug_to_key(slot_slug)
+    text = request.get_data(as_text=True)
+    with _lock:
+        data = load_data()
+        old_val = data.get(campus_id, {}).get(key, "")
+        data.setdefault(campus_id, {})[key] = text
+        save_data(data)
+    if _notify_hook and text != old_val:
+        slots = load_slots()
+        campus_name = next((c["name"] for c in load_campuses() if c["id"] == campus_id), campus_id.title())
+        label = next((s["label"] for s in slots if s["slug"] == slot_slug), slot_slug)
+        ts = datetime.now().strftime("%Y.%m.%d %H:%M")
+        _notify_hook([label], campus_name, ts)
+    return jsonify({"ok": True})
+
+@app.route("/api/content/<campus_id>/<slot_slug>", methods=["DELETE"])
+def api_slot_delete(campus_id, slot_slug):
+    if not _valid_campus(campus_id) or not _valid_slug(slot_slug):
+        return jsonify({"error": "Not found"}), 404
+    key = slug_to_key(slot_slug)
+    with _lock:
+        data = load_data()
+        data.setdefault(campus_id, {})[key] = ""
+        save_data(data)
+    return jsonify({"ok": True})
 
 @app.route("/api/content/<campus_id>", methods=["POST"])
 def api_post(campus_id):
@@ -180,6 +262,41 @@ def api_post(campus_id):
     return jsonify({"ok": True})
 
 
+# ── Schedule API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/schedule/<campus_id>/<slot_slug>", methods=["GET"])
+def api_schedule_get(campus_id, slot_slug):
+    if not _valid_campus(campus_id) or not _valid_slug(slot_slug):
+        return jsonify({"error": "Not found"}), 404
+    key = slug_to_key(slot_slug)
+    with _lock:
+        data = load_data()
+    return jsonify(data.get("schedules", {}).get(campus_id, {}).get(key, []))
+
+@app.route("/api/schedule/<campus_id>/<slot_slug>", methods=["PUT"])
+def api_schedule_put(campus_id, slot_slug):
+    if not _valid_campus(campus_id) or not _valid_slug(slot_slug):
+        return jsonify({"error": "Not found"}), 404
+    key = slug_to_key(slot_slug)
+    entries = request.get_json(force=True)
+    if not isinstance(entries, list):
+        return jsonify({"error": "Expected JSON array"}), 400
+    clean = []
+    for e in entries:
+        t = str(e.get("time", "")).strip()
+        text = str(e.get("text", "")).strip()
+        if t:
+            clean.append({"time": t, "text": text})
+    clean.sort(key=lambda e: e["time"])
+    with _lock:
+        data = load_data()
+        data.setdefault("schedules", {}).setdefault(campus_id, {})[key] = clean
+        save_data(data)
+    # Immediately update the PP timer for this campus
+    threading.Thread(target=_check_and_update_timer, args=(campus_id,), daemon=True).start()
+    return jsonify({"ok": True})
+
+
 # ── Config API ────────────────────────────────────────────────────────────────
 
 @app.route("/api/config", methods=["GET"])
@@ -190,13 +307,20 @@ def api_config_get():
 def api_config_post():
     body = request.get_json(force=True)
 
-    # Validate + normalise slots
+    # Validate + normalise slots; collect old→new slug renames
     slots = []
+    renames = {}  # old_key → new_key
     for s in body.get("slots", []):
-        label = s.get("label", "").strip()
-        slug  = s.get("slug",  "").strip()
+        label     = s.get("label",     "").strip()
+        slug      = s.get("slug",      "").strip()
+        old_slug  = s.get("old_slug",  "").strip()
+        scheduled = bool(s.get("scheduled", False))
         if label and slug:
-            slots.append({"label": label, "slug": slug})
+            slots.append({"label": label, "slug": slug, "scheduled": scheduled})
+            old_key = slug_to_key(old_slug) if old_slug else None
+            new_key = slug_to_key(slug)
+            if old_key and old_key != new_key:
+                renames[old_key] = new_key
 
     # Validate + normalise campuses
     campuses = []
@@ -212,7 +336,31 @@ def api_config_post():
             campuses.append(entry)
 
     with _lock:
+        # Preserve per-campus slot_timers that are managed outside Settings
+        existing = {c["id"]: c for c in load_config().get("campuses", [])}
+        for campus in campuses:
+            if campus["id"] in existing:
+                campus["slot_timers"] = existing[campus["id"]].get("slot_timers", {})
         save_config({"slots": slots, "campuses": campuses})
+        if renames:
+            data = load_data()
+            # Migrate per-campus content keys
+            for campus in campuses:
+                cdata = data.get(campus["id"], {})
+                for old_key, new_key in renames.items():
+                    if old_key in cdata:
+                        cdata[new_key] = cdata.pop(old_key)
+                if cdata:
+                    data[campus["id"]] = cdata
+            # Migrate per-campus schedule keys
+            schedules = data.get("schedules", {})
+            for campus_sched in schedules.values():
+                for old_key, new_key in renames.items():
+                    if old_key in campus_sched:
+                        campus_sched[new_key] = campus_sched.pop(old_key)
+            if schedules:
+                data["schedules"] = schedules
+            save_data(data)
 
     return jsonify({"ok": True})
 
@@ -272,6 +420,36 @@ def _pp_request(method, url, body=None):
 
 
 
+@app.route("/api/campus/<campus_id>/slot-timers", methods=["PUT"])
+def campus_slot_timers_put(campus_id):
+    body = request.get_json(force=True) or {}
+    slot_timers = body.get("slot_timers", {})
+    if not isinstance(slot_timers, dict):
+        return jsonify({"error": "slot_timers must be an object"}), 400
+    with _lock:
+        cfg = load_config()
+        for campus in cfg.get("campuses", []):
+            if campus["id"] == campus_id:
+                campus["slot_timers"] = slot_timers
+                break
+        else:
+            return jsonify({"error": "campus not found"}), 404
+        save_config(cfg)
+    _check_and_update_timer(campus_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/campus/<campus_id>/pp-timers", methods=["GET"])
+def pp_timers_list(campus_id):
+    host, port = _pp_base(campus_id)
+    if not host:
+        return jsonify([])
+    timers, status = _pp_json_request("GET", f"http://{host}:{port}/v1/timers")
+    if timers is None:
+        return jsonify([])
+    return jsonify([{"name": t["id"]["name"], "uuid": t["id"]["uuid"]} for t in timers])
+
+
 @app.route("/api/campus/<campus_id>/stage-message", methods=["GET"])
 def pp_stage_message_get(campus_id):
     host, port = _pp_base(campus_id)
@@ -307,6 +485,113 @@ def pp_stage_message_clear(campus_id):
         return jsonify({"error": "ProPresenter not configured for this campus"}), 404
     body, status = _pp_request("DELETE", f"http://{host}:{port}/v1/stage/message")
     return body, status, {"Content-Type": "text/plain"}
+
+
+# ── ProPresenter auto-timer ───────────────────────────────────────────────────
+
+def _pp_json_request(method, url, body=None):
+    req = urllib.request.Request(url, method=method)
+    if body is not None:
+        req.data = json.dumps(body).encode()
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=3) as r:
+            return json.loads(r.read().decode() or "null"), r.status
+    except urllib.error.HTTPError as e:
+        return None, e.code
+    except Exception:
+        return None, 502
+
+
+def _set_pp_countdown_to_time(host, port, timer_id, target_hhmm):
+    """Start a named PP timer counting down to the given HH:MM time of day.
+    Uses PUT /v1/timer/{id}/start with count_down_to_time."""
+    h, m = map(int, target_hhmm.split(":"))
+    time_of_day = h * 3600 + m * 60
+    period = "am" if h < 12 else "pm"
+    body = {
+        "id": {"name": str(timer_id)},
+        "allows_overrun": False,
+        "count_down_to_time": {"time_of_day": time_of_day, "period": period},
+    }
+    import urllib.parse
+    encoded_id = urllib.parse.quote(str(timer_id), safe="")
+    url = f"http://{host}:{port}/v1/timer/{encoded_id}/start"
+    _, status = _pp_json_request("PUT", url, body)
+    if status not in (200, 204):
+        print(f"[timer] PUT /v1/timer/{timer_id}/start returned {status}")
+        return False
+    print(f"[timer] started '{timer_id}' counting down to {target_hhmm}")
+    return True
+
+
+def _next_transition_time(campus_id, data):
+    """Return the HH:MM of the next scheduled transition for this campus, or None."""
+    scheduled_keys = {slug_to_key(s["slug"]) for s in load_slots() if s.get("scheduled")}
+    if not scheduled_keys:
+        return None
+    now_hhmm = datetime.now().strftime("%H:%M")
+    earliest = None
+    for key in scheduled_keys:
+        entries = data.get("schedules", {}).get(campus_id, {}).get(key, [])
+        for e in entries:
+            t = e.get("time", "")
+            if t > now_hhmm:
+                if earliest is None or t < earliest:
+                    earliest = t
+    return earliest
+
+
+def _check_and_update_timer(campus_id):
+    """For each scheduled slot with a configured timer, set its PP timer to the next transition."""
+    campus = next((c for c in load_campuses() if c["id"] == campus_id), None)
+    if not campus:
+        return
+    host = campus.get("propresenter_host", "").strip()
+    port = int(campus.get("propresenter_port") or 53072)
+    if not host:
+        return
+    slot_timers = campus.get("slot_timers", {})
+    if not slot_timers:
+        return
+    with _lock:
+        data = load_data()
+    now_hhmm = datetime.now().strftime("%H:%M")
+    scheduled_slots = [s for s in load_slots() if s.get("scheduled")]
+    for slot in scheduled_slots:
+        slug = slot["slug"]
+        timer_id = slot_timers.get(slug, "").strip()
+        if not timer_id:
+            continue
+        slot_key = slug_to_key(slug)
+        entries = data.get("schedules", {}).get(campus_id, {}).get(slot_key, [])
+        next_time = None
+        for e in sorted(entries, key=lambda x: x.get("time", "")):
+            if e.get("time", "") > now_hhmm:
+                next_time = e["time"]
+                break
+        if next_time:
+            _set_pp_countdown_to_time(host, port, timer_id, next_time)
+
+
+def _scheduler_loop():
+    """Background thread — wakes at each minute boundary to update PP timers."""
+    import time
+    while True:
+        # Sleep until the next whole minute
+        now = datetime.now()
+        sleep_secs = 60 - now.second - now.microsecond / 1_000_000
+        time.sleep(max(sleep_secs, 1))
+        try:
+            for campus in load_campuses():
+                _check_and_update_timer(campus["id"])
+        except Exception as e:
+            print(f"[timer] scheduler error: {e}")
+
+
+# Start background timer thread (guard against Flask debug-mode double-start)
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    threading.Thread(target=_scheduler_loop, daemon=True).start()
 
 
 if __name__ == "__main__":

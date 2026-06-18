@@ -2,15 +2,28 @@
   "slots": [
     {
       "label": "Host Pre-Service",
-      "slug": "host-pre-service"
+      "slug": "host-pre-service",
+      "scheduled": false
     },
     {
       "label": "Host Mid-Service",
-      "slug": "host-mid-service"
+      "slug": "host-mid-service",
+      "scheduled": false
     },
     {
       "label": "Host Close",
-      "slug": "host-close"
+      "slug": "host-close",
+      "scheduled": false
+    },
+    {
+      "label": "Nameplate",
+      "slug": "nameplate",
+      "scheduled": false
+    },
+    {
+      "label": "Rehearsal Flow",
+      "slug": "rehearsal-flow",
+      "scheduled": true
     }
   ],
   "campuses": [
@@ -21,7 +34,10 @@
         "0.0.0.0/0"
       ],
       "propresenter_host": "10.12.253.12",
-      "propresenter_port": 53072
+      "propresenter_port": 53072,
+      "slot_timers": {
+        "rehearsal-flow": "Rehearsal Item"
+      }
     }
   ]
 }

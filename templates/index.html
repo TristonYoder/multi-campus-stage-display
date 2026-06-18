@@ -94,6 +94,69 @@
   .panel { display: none; }
   .panel.active { display: block; }
   /* ── Stage message panel ── */
+  /* ── Scheduler ── */
+  .slot-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .btn-schedule-toggle {
+    padding: .25rem .6rem;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .btn-schedule-toggle:hover,
+  .btn-schedule-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(235,231,23,.08);
+  }
+  .schedule-panel {
+    display: none;
+    flex-direction: column;
+    gap: .5rem;
+    margin-top: .25rem;
+  }
+  .schedule-panel.open { display: flex; }
+  .schedule-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr auto;
+    gap: .4rem;
+    align-items: center;
+  }
+  .schedule-row input[type="time"],
+  .schedule-row input[type="text"] {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: .9rem;
+    padding: .4rem .6rem;
+    width: 100%;
+  }
+  .schedule-row input:focus { outline: none; border-color: var(--accent); }
+  .schedule-badge {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(235,231,23,.12);
+    border-radius: 3px;
+    padding: .1rem .35rem;
+  }
+
+  /* ── Stage message panel ── */
   .stage-msg-panel {
     margin-top: 1.5rem;
     padding: 1.25rem 1.5rem;
@@ -365,7 +428,7 @@
     gap: 0.5rem;
     align-items: center;
   }
-  .edit-row.slot-row  { grid-template-columns: 1fr auto auto; }
+  .edit-row.slot-row  { grid-template-columns: 1fr auto auto auto; }
   .edit-row.campus-row { grid-template-columns: 1fr 1fr 1.2fr 5rem auto; }
   .edit-row.campus-row .pp-port { width: 100%; }
 
@@ -382,6 +445,27 @@
   }
   .edit-row input[type="text"]:focus { outline: none; border-color: var(--accent); }
   .edit-row input[readonly] { color: var(--text-muted); cursor: default; }
+
+  .toggle-scheduled {
+    padding: .25rem .6rem;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .toggle-scheduled.on {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(235,231,23,.08);
+  }
 
   .slug-preview {
     font-size: 0.72rem;
@@ -436,7 +520,7 @@
     color: var(--accent);
   }
   .col-headers { display: grid; gap: 0.5rem; padding: 0 0 0.25rem; }
-  .col-headers.slot-headers  { grid-template-columns: 1fr auto auto; }
+  .col-headers.slot-headers  { grid-template-columns: 1fr auto auto auto; }
   .col-headers.campus-headers { grid-template-columns: 1fr 1fr 1.2fr 5rem auto; }
 
   .admin-footer {
@@ -502,9 +586,33 @@
     <div class="slot-grid">
       {% for slot in slots %}
       <div class="slot-card">
-        <label>{{ slot.label }}</label>
+        <label>{{ slot.label }}{% if slot.scheduled %} <span class="schedule-badge">Scheduled</span>{% endif %}</label>
+        {% if slot.scheduled %}
+        <div class="schedule-panel open" id="schedpanel-{{ campus.id }}-{{ slot.slug }}">
+          {% if campus.propresenter_host %}
+          {% set saved = (campus.slot_timers or {}).get(slot.slug, '') %}
+          <div class="slot-timer-row" data-slot-slug="{{ slot.slug }}"
+               style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.4rem;">
+            <span style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;">Timer</span>
+            <select class="pp-timer-select"
+                    style="flex:1;background:var(--bg-dark);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.8rem;padding:.25rem .4rem;"
+                    data-saved="{{ saved }}">
+              <option value="">— select —</option>
+              {% if saved %}
+              <option value="{{ saved }}" selected>{{ saved }}</option>
+              {% endif %}
+            </select>
+            <button type="button" class="btn-secondary" style="padding:.2rem .5rem;font-size:.75rem;"
+                    onclick="loadCampusTimerOptions('{{ campus.id }}')">↻</button>
+          </div>
+          {% endif %}
+          <div class="schedule-rows" id="schedrows-{{ campus.id }}-{{ slot.slug }}"></div>
+          <button class="btn-add" onclick="addScheduleRow('{{ campus.id }}', '{{ slot.slug }}')">+ Add Time Entry</button>
+        </div>
+        {% else %}
         <textarea id="{{ campus.id }}-{{ slot.slug }}"
                   placeholder="{{ slot.label }} content..."></textarea>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -575,14 +683,17 @@
         <div class="col-headers slot-headers">
           <span class="col-header">Label</span>
           <span class="col-header">Slug</span>
+          <span class="col-header" style="text-align:center">Scheduled</span>
           <span></span>
         </div>
         <div class="edit-list" id="slotList">
           {% for slot in slots %}
-          <div class="edit-row slot-row">
+          <div class="edit-row slot-row" data-slug="{{ slot.slug }}">
             <input type="text" class="slot-label" value="{{ slot.label }}"
                    placeholder="Label" oninput="updateSlugPreview(this)">
             <span class="slug-preview">{{ slot.slug }}</span>
+            <button type="button" class="toggle-scheduled{% if slot.scheduled %} on{% endif %}"
+                    onclick="this.classList.toggle('on')">Schedule</button>
             <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>
           </div>
           {% endfor %}
@@ -610,7 +721,8 @@
                    placeholder="IP ranges: 10.10.1.0/24, …">
             <input type="text" class="pp-host"
                    value="{{ campus.propresenter_host or '' }}"
-                   placeholder="ProPresenter IP (e.g. 10.10.1.50)">
+                   placeholder="ProPresenter IP (e.g. 10.10.1.50)"
+                   onchange="loadTimerOptions(this.closest('.campus-row'))">
             <input type="text" class="pp-port"
                    value="{{ campus.propresenter_port or 53072 }}"
                    placeholder="Port (default 53072)">
@@ -666,15 +778,54 @@
     }
   }
 
+  // ── Scheduler (campus panels) ─────────────────────────────────────────────
+  const SCHEDULED_SLUGS = new Set({{ slots | selectattr('scheduled') | map(attribute='slug') | list | tojson }});
+  const SCHEDULED_SLOTS = {{ slots | selectattr('scheduled') | list | tojson }};
+
+  function addScheduleRow(campusId, slug, entry = {}) {
+    const container = document.getElementById(`schedrows-${campusId}-${slug}`);
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'schedule-row';
+    row.innerHTML = `
+      <input type="time" value="${entry.time || ''}">
+      <input type="text" placeholder="Message…" value="${(entry.text || '').replace(/"/g, '&quot;')}">
+      <button class="btn-remove" onclick="this.closest('.schedule-row').remove()" title="Remove">×</button>`;
+    container.appendChild(row);
+  }
+
+  function collectSchedule(campusId, slug) {
+    const rows = document.querySelectorAll(`#schedrows-${campusId}-${slug} .schedule-row`);
+    return [...rows].map(row => ({
+      time: row.querySelector('input[type="time"]').value,
+      text: row.querySelector('input[type="text"]').value,
+    })).filter(e => e.time);
+  }
+
   // ── Campus content ────────────────────────────────────────────────────────
   async function loadContent(campusId) {
+    // Load manual content for non-scheduled slots
     const r = await fetch(`/api/content/${campusId}`);
     const data = await r.json();
     SLOT_SLUGS.forEach(slug => {
+      if (SCHEDULED_SLUGS.has(slug)) return;
       const key = slug.replace(/-/g, '_');
       const el = document.getElementById(`${campusId}-${slug}`);
       if (el) el.value = data[key] || '';
     });
+    // Load schedule entries and timer options in parallel
+    await Promise.all([
+      ...[...SCHEDULED_SLUGS].map(async slug => {
+        const r2 = await fetch(`/api/schedule/${campusId}/${slug}`);
+        if (!r2.ok) return;
+        const entries = await r2.json();
+        const container = document.getElementById(`schedrows-${campusId}-${slug}`);
+        if (!container) return;
+        container.innerHTML = '';
+        entries.forEach(e => addScheduleRow(campusId, slug, e));
+      }),
+      loadCampusTimerOptions(campusId),
+    ]);
   }
 
   let _pendingSave = null;
@@ -701,12 +852,34 @@
       const el = document.getElementById(`${campusId}-${slug}`);
       body[key] = el ? el.value : '';
     });
-    const r = await fetch(`/api/content/${campusId}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body),
+    const schedReqs = [...SCHEDULED_SLUGS].map(slug =>
+      fetch(`/api/schedule/${campusId}/${slug}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(collectSchedule(campusId, slug)),
+      })
+    );
+    const slot_timers = {};
+    document.querySelectorAll(`#panel-${campusId} .slot-timer-row`).forEach(row => {
+      const slug = row.dataset.slotSlug;
+      const val = row.querySelector('.pp-timer-select')?.value || '';
+      if (slug && val) slot_timers[slug] = val;
     });
-    flash(`status-${campusId}`, r.ok ? 'Saved' : 'Error', !r.ok);
+    const results = await Promise.all([
+      fetch(`/api/content/${campusId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      }),
+      fetch(`/api/campus/${campusId}/slot-timers`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ slot_timers }),
+      }),
+      ...schedReqs,
+    ]);
+    const ok = results.every(r => r.ok);
+    flash(`status-${campusId}`, ok ? 'Saved' : 'Error', !ok);
   }
 
   function clearCampus(campusId) {
@@ -830,6 +1003,61 @@
     row.dataset.id = toSlug(input.value);
   }
 
+  async function loadCampusTimerOptions(campusId) {
+    const panel = document.getElementById(`panel-${campusId}`);
+    if (!panel) return;
+    const selects = [...panel.querySelectorAll('.slot-timer-row .pp-timer-select')];
+    if (!selects.length) return;
+    selects.forEach(s => { s.innerHTML = '<option value="">Loading…</option>'; });
+    let timers = [];
+    try {
+      const r = await fetch(`/api/campus/${campusId}/pp-timers`);
+      timers = await r.json();
+    } catch { /* fall through */ }
+    selects.forEach(select => {
+      const saved = select.dataset.saved || select.value;
+      if (!timers.length) { select.innerHTML = '<option value="">No timers found</option>'; return; }
+      select.innerHTML = '<option value="">— select timer —</option>';
+      timers.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.name; opt.textContent = t.name;
+        if (t.name === saved) opt.selected = true;
+        select.appendChild(opt);
+      });
+    });
+  }
+
+  async function loadAllTimerOptions(row) {
+    const campusId = row.dataset.id;
+    if (!campusId) return;
+    const selects = [...row.querySelectorAll('.slot-timer-row .pp-timer-select')];
+    if (!selects.length) return;
+    selects.forEach(s => { s.innerHTML = '<option value="">Loading…</option>'; });
+    let timers = [];
+    try {
+      const r = await fetch(`/api/campus/${campusId}/pp-timers`);
+      timers = await r.json();
+    } catch { /* leave as failed */ }
+    selects.forEach(select => {
+      const saved = select.dataset.saved || select.value;
+      if (!timers.length) {
+        select.innerHTML = '<option value="">No timers found</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">— select timer —</option>';
+      timers.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = t.name;
+        if (t.name === saved) opt.selected = true;
+        select.appendChild(opt);
+      });
+    });
+  }
+
+  // Keep old name as alias (used by onchange on pp-host input)
+  const loadTimerOptions = loadAllTimerOptions;
+
   function removeRow(btn) {
     btn.closest('.edit-row').remove();
   }
@@ -840,6 +1068,7 @@
     row.innerHTML = `
       <input type="text" class="slot-label" placeholder="Label" oninput="updateSlugPreview(this)">
       <span class="slug-preview"></span>
+      <button type="button" class="toggle-scheduled" onclick="this.classList.toggle('on')">Schedule</button>
       <button class="btn-remove" onclick="removeRow(this)" title="Remove">×</button>`;
     document.getElementById('slotList').appendChild(row);
     row.querySelector('input').focus();
@@ -861,8 +1090,10 @@
 
   async function saveConfig() {
     const slots = [...document.querySelectorAll('#slotList .edit-row')].map(row => ({
-      label: row.querySelector('.slot-label').value.trim(),
-      slug:  toSlug(row.querySelector('.slot-label').value),
+      label:     row.querySelector('.slot-label').value.trim(),
+      slug:      toSlug(row.querySelector('.slot-label').value),
+      old_slug:  row.dataset.slug || '',
+      scheduled: row.querySelector('.toggle-scheduled')?.classList.contains('on') || false,
     })).filter(s => s.label);
 
     const campuses = [...document.querySelectorAll('#campusList .edit-row')].map(row => {
@@ -879,6 +1110,7 @@
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ slots, campuses }),
     });
+
     if (r.ok) {
       flash('status-config', 'Saved — reloading…');
       setTimeout(() => location.reload(), 800);
