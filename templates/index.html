@@ -202,6 +202,36 @@
     background: rgba(235,231,23,.12);
   }
   .stage-msg-status.editing::before { background: var(--accent); }
+  .pp-conn-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+  }
+  .pp-conn {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    padding: .25rem .6rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: rgba(255,255,255,.06);
+  }
+  .pp-conn::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+  .pp-conn.connected { color: #3ddc84; background: rgba(61,220,132,.12); }
+  .pp-conn.connected::before { background: #3ddc84; }
+  .pp-conn.disconnected { color: #ff4444; background: rgba(255,68,68,.12); }
+  .pp-conn.disconnected::before { background: #ff4444; }
   .stage-msg-current {
     display: flex;
     align-items: center;
@@ -583,6 +613,12 @@
   <!-- ── Campus panels ── -->
   {% for campus in campuses %}
   <div class="panel" id="panel-{{ campus.id }}">
+    <div class="pp-conn-bar">
+      <span class="pp-conn {{ 'checking' if campus.propresenter_host else 'unconfigured' }}" id="ppconn-{{ campus.id }}"
+            title="{{ ('ProPresenter at ' ~ campus.propresenter_host ~ ':' ~ (campus.propresenter_port or 53072)) if campus.propresenter_host else 'No ProPresenter IP set in Settings' }}">
+        ProPresenter: <span class="pp-conn-text">{{ 'Checking…' if campus.propresenter_host else 'Not configured' }}</span>
+      </span>
+    </div>
     <div class="slot-grid">
       {% for slot in slots %}
       <div class="slot-card">
@@ -739,6 +775,21 @@
       <button class="btn-save" onclick="saveConfig()">Save Settings</button>
       <span class="status-msg" id="status-config"></span>
     </div>
+
+    <!-- Import / Export -->
+    <div class="admin-card" style="margin-top:2rem;">
+      <h2>Import / Export</h2>
+      <p style="color:var(--text-muted);font-size:.9rem;margin:0;">
+        Export downloads a JSON file with all campus settings plus the current notes and schedules.
+        Importing a file replaces the current settings and notes with its contents.
+      </p>
+      <div class="admin-footer">
+        <a class="btn-secondary" href="/api/export" download style="text-decoration:none;">Export JSON</a>
+        <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Import JSON…</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importConfig(this)">
+        <span class="status-msg" id="status-import"></span>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -771,11 +822,45 @@
       t.classList.toggle('active', t.dataset.campus === id));
     document.querySelectorAll('.panel').forEach(p =>
       p.classList.toggle('active', p.id === 'panel-' + id));
+    ppConnStopPolling();
     if (id !== '__rss' && id !== '__config' && id !== '__landing') {
       loadContent(id);
       const panel = document.getElementById(`stagepanel-${id}`);
-      if (panel && panel.dataset.configured === 'true') stageMessageStartPolling(id);
+      if (panel && panel.dataset.configured === 'true') {
+        stageMessageStartPolling(id);
+        ppConnStartPolling(id);
+      }
     }
+  }
+
+  // ── ProPresenter connection indicator ─────────────────────────────────────
+  let _ppConnPoller = null;
+
+  function ppConnStopPolling() {
+    if (_ppConnPoller) clearInterval(_ppConnPoller);
+    _ppConnPoller = null;
+  }
+
+  async function ppConnCheck(campusId) {
+    const el = document.getElementById(`ppconn-${campusId}`);
+    if (!el) return;
+    let state = 'disconnected', text = 'Disconnected';
+    try {
+      const r = await fetch(`/api/campus/${campusId}/pp-status`);
+      const s = await r.json();
+      if (!s.configured) { state = 'unconfigured'; text = 'Not configured'; }
+      else if (s.connected) { state = 'connected'; text = 'Connected'; }
+    } catch {
+      text = 'Server unreachable';
+    }
+    if (active !== campusId) return;  // tab changed while waiting
+    el.className = `pp-conn ${state}`;
+    el.querySelector('.pp-conn-text').textContent = text;
+  }
+
+  function ppConnStartPolling(campusId) {
+    ppConnCheck(campusId);
+    _ppConnPoller = setInterval(() => ppConnCheck(campusId), 10000);
   }
 
   // ── Scheduler (campus panels) ─────────────────────────────────────────────
@@ -1116,6 +1201,34 @@
       setTimeout(() => location.reload(), 800);
     } else {
       flash('status-config', 'Error saving', true);
+    }
+  }
+
+  async function importConfig(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (!confirm(`Import "${file.name}"?\n\nThis replaces current campus settings and notes.`)) return;
+
+    let body;
+    try {
+      body = JSON.parse(await file.text());
+    } catch {
+      flash('status-import', 'File is not valid JSON', true);
+      return;
+    }
+
+    const r = await fetch('/api/import', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (r.ok) {
+      flash('status-import', 'Imported — reloading…');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      flash('status-import', res.error || 'Import failed', true);
     }
   }
 

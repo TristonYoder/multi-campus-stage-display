@@ -31,6 +31,12 @@ DATA_FILE     = DATA_DIR / "data.json"
 
 _lock = threading.Lock()
 
+# Seed a fresh data dir (e.g. an empty Docker volume) with the bundled default config
+_bundled_campuses = Path(__file__).parent / "campuses.json"
+if not CAMPUSES_FILE.exists() and _bundled_campuses.exists():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    CAMPUSES_FILE.write_text(_bundled_campuses.read_text())
+
 
 # ── Config helpers ────────────────────────────────────────────────────────────
 
@@ -365,6 +371,146 @@ def api_config_post():
     return jsonify({"ok": True})
 
 
+# ── Import / export ───────────────────────────────────────────────────────────
+
+EXPORT_FORMAT = "multi-campus-stage-display"
+EXPORT_VERSION = 1
+
+
+@app.route("/api/export", methods=["GET"])
+def api_export():
+    """Download campus configuration plus current notes/schedules as one JSON file."""
+    with _lock:
+        cfg = load_config()
+        data = load_data()
+    payload = {
+        "format": EXPORT_FORMAT,
+        "version": EXPORT_VERSION,
+        "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "config": cfg,
+        "data": data,
+    }
+    filename = f"stage-display-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+    return app.response_class(
+        json.dumps(payload, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _normalize_import_config(cfg):
+    """Validate an imported config; return (clean_config, error)."""
+    if not isinstance(cfg, dict):
+        return None, "config must be an object"
+    raw_slots, raw_campuses = cfg.get("slots", []), cfg.get("campuses", [])
+    if not isinstance(raw_slots, list) or not isinstance(raw_campuses, list):
+        return None, "config.slots and config.campuses must be arrays"
+
+    slots, seen_slugs = [], set()
+    for s in raw_slots:
+        if not isinstance(s, dict):
+            return None, "each slot must be an object"
+        label = str(s.get("label", "")).strip()
+        slug = str(s.get("slug", "")).strip()
+        if not label or not slug:
+            return None, "each slot needs a label and slug"
+        if slug in seen_slugs:
+            return None, f"duplicate slot slug: {slug}"
+        seen_slugs.add(slug)
+        slots.append({"label": label, "slug": slug, "scheduled": bool(s.get("scheduled", False))})
+
+    campuses, seen_ids = [], set()
+    for c in raw_campuses:
+        if not isinstance(c, dict):
+            return None, "each campus must be an object"
+        cid = str(c.get("id", "")).strip()
+        name = str(c.get("name", "")).strip()
+        if not cid or not name:
+            return None, "each campus needs an id and name"
+        if cid in seen_ids:
+            return None, f"duplicate campus id: {cid}"
+        seen_ids.add(cid)
+        nets = c.get("networks", [])
+        if not isinstance(nets, list):
+            return None, f"campus {cid}: networks must be an array"
+        try:
+            pp_port = int(c.get("propresenter_port") or 53072)
+        except (TypeError, ValueError):
+            return None, f"campus {cid}: propresenter_port must be a number"
+        slot_timers = c.get("slot_timers", {})
+        if not isinstance(slot_timers, dict):
+            return None, f"campus {cid}: slot_timers must be an object"
+        campuses.append({
+            "id": cid,
+            "name": name,
+            "networks": [str(n).strip() for n in nets if str(n).strip()],
+            "propresenter_host": str(c.get("propresenter_host") or "").strip(),
+            "propresenter_port": pp_port,
+            "slot_timers": {str(k): str(v) for k, v in slot_timers.items()},
+        })
+
+    return {"slots": slots, "campuses": campuses}, None
+
+
+def _validate_import_data(data):
+    """Validate imported notes/schedules; return error string or None."""
+    if not isinstance(data, dict):
+        return "data must be an object"
+    for key, value in data.items():
+        if not isinstance(value, dict):
+            return f"data.{key} must be an object"
+        if key == "schedules":
+            for cid, slots in value.items():
+                if not isinstance(slots, dict):
+                    return f"data.schedules.{cid} must be an object"
+                for slot_key, entries in slots.items():
+                    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+                        return f"data.schedules.{cid}.{slot_key} must be an array of objects"
+    return None
+
+
+@app.route("/api/import", methods=["POST"])
+def api_import():
+    """Restore an export file. Replaces config and/or notes, whichever the file contains."""
+    body = request.get_json(force=True, silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "File is not valid JSON"}), 400
+
+    # Also accept a bare campuses.json (top-level slots/campuses)
+    if "config" not in body and "data" not in body and ("slots" in body or "campuses" in body):
+        body = {"config": body}
+    if body.get("format", EXPORT_FORMAT) != EXPORT_FORMAT:
+        return jsonify({"error": "Not a stage display export file"}), 400
+    if "config" not in body and "data" not in body:
+        return jsonify({"error": "File contains no config or data"}), 400
+
+    cfg = data = None
+    if "config" in body:
+        cfg, err = _normalize_import_config(body["config"])
+        if err:
+            return jsonify({"error": f"Invalid config: {err}"}), 400
+    if "data" in body:
+        data = body["data"]
+        err = _validate_import_data(data)
+        if err:
+            return jsonify({"error": f"Invalid data: {err}"}), 400
+
+    with _lock:
+        if cfg is not None:
+            save_config(cfg)
+        if data is not None:
+            save_data(data)
+
+    for campus in load_campuses():
+        threading.Thread(target=_check_and_update_timer, args=(campus["id"],), daemon=True).start()
+
+    return jsonify({
+        "ok": True,
+        "imported_config": cfg is not None,
+        "imported_data": data is not None,
+    })
+
+
 # ── RSS ───────────────────────────────────────────────────────────────────────
 
 def _valid_slug(slug):
@@ -448,6 +594,22 @@ def pp_timers_list(campus_id):
     if timers is None:
         return jsonify([])
     return jsonify([{"name": t["id"]["name"], "uuid": t["id"]["uuid"]} for t in timers])
+
+
+@app.route("/api/campus/<campus_id>/pp-status", methods=["GET"])
+def pp_status(campus_id):
+    """Report whether this campus's ProPresenter API is reachable."""
+    if not _valid_campus(campus_id):
+        return jsonify({"error": "Not found"}), 404
+    host, port = _pp_base(campus_id)
+    if not host:
+        return jsonify({"configured": False, "connected": False})
+    info, status = _pp_json_request("GET", f"http://{host}:{port}/version")
+    connected = status == 200
+    result = {"configured": True, "connected": connected, "host": host, "port": port}
+    if connected and isinstance(info, dict) and info.get("name"):
+        result["name"] = info["name"]
+    return jsonify(result)
 
 
 @app.route("/api/campus/<campus_id>/stage-message", methods=["GET"])

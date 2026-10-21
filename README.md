@@ -10,6 +10,7 @@ A web app for managing ProPresenter stage display content across multiple campus
 - **RSS feeds:** Per campus and slot, plus a dynamic feed that routes by requesting IP for unified ProPresenter configs
 - **ProPresenter Config tab:** Copy RSS URLs ready to paste into ProPresenter
 - **Settings tab:** Add/remove campuses and display types without touching config files
+- **Import / Export:** Download campus settings plus current notes and schedules as one JSON file, and restore it from the Settings tab
 - **Direct URLs:** `/campus-name` opens straight to that campus tab
 - **macOS menu bar app:** Runs in the background, sends notifications when content is updated
 - **Auto-updates:** App checks daily for new releases and notifies you
@@ -233,6 +234,10 @@ pip install -r requirements-mac.txt
 
 Both files are read on every request. In Docker they are volume-mounted so edits apply immediately without restarting the container.
 
+### Import / Export
+
+Settings → **Import / Export** downloads both files as a single JSON export (`GET /api/export`) and restores one (`POST /api/import`). Importing replaces the current campus settings and notes with the file's contents; a bare `campuses.json` can also be imported to replace only the settings.
+
 ---
 
 ## RSS Feed URLs
@@ -254,3 +259,4 @@ Slot slugs are defined in `campuses.json` and configurable via the Settings tab.
 | Campus direct link | `http://SERVER_IP:6767/campus` |
 | Static RSS feed | `http://SERVER_IP:6767/rss/campus/host-pre-service` |
 | Dynamic RSS (by IP) | `http://SERVER_IP:6767/rss/dynamic/host-pre-service` |
+| Export settings + notes | `http://SERVER_IP:6767/api/export` |

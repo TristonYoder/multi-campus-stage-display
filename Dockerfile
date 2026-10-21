@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+# Pull in Debian security updates on top of the base image
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .
